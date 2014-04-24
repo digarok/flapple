@@ -19,13 +19,13 @@ Main
 	jsr DetectIIgs
 	jsr InitState	;@todo: IIc vblank code
 
-
+	
 	jsr VBlank
-
 	jsr DL_SetDLRMode
 	
 	lda #$77
 	jsr DL_Clear
+
 
 GameLoop	
 	; handle input
@@ -128,29 +128,60 @@ MoveDrawPipes	lda BotPipes
 
 SRCPTR	equz  $00
 DSTPTR	equz  $02
-
+RCLIP	equ #40
+PIPEUNDERVAL	db 0
 * A=x Y=(byte)y
 DrawPipeSimple 
 	tax
-	cpx #95-15
+	cpx #95-12
 	bcc :notOver
+:OVER	sec	; clipped on the right.. maybe left too
+	sbc #16
+	lsr
+	bcc :evenR
+:oddR	jsr DrawPipeOddR
+	rts
+:evenR	jsr DrawPipeEvenR
 	rts
 :notOver	cpx #16
 	bcs :notUnder
-	rts
-:notUnder
-	
+:UNDER			; X = 0-16	
+	stx PIPEUNDERVAL	; we're going to flip it around
+	lda #16		; and move backwards from 0.  
+	sec
+	sbc PIPEUNDERVAL
+	pha
 	lsr
-	bcc :even
-:odd	txa
-	jsr DrawPipeOddR
+	sta PIPEUNDERVAL
+	lda #0
+	sec
+	sbc PIPEUNDERVAL
+	tax 
+	pla
+	lsr
+	bcc :evenL
+:oddL	dex	; downshift * 1
+	txa	
+	jsr DrawPipeOddL
 	rts
-:even	txa
-	jsr DrawPipeEvenR
+:evenL	txa
+	jsr DrawPipeEvenL
 	rts
 
-* A=x x=x Y=(byte)y
-DrawPipeOddR	
+:notUnder		; in screen bounds so give real memory x offset
+	sec
+	sbc #16
+	lsr
+	bcc :even
+:odd	;txa
+	jsr DrawPipeOdd
+	rts
+:even	;txa
+	jsr DrawPipeEven
+	rts
+
+* A=x(screenmemX) x=x(full96) Y=(byte)y
+DrawPipeOdd	tax	
 	sta TXTPAGE1
 	tya
 	asl	; *2
@@ -160,9 +191,6 @@ DrawPipeOddR
 	lda LoLineTable+1,y
 	sta DSTPTR+1	; pointer to line on screen
 	txa
-	clc
-	sbc #15
-	lsr
 	pha
 	tay	; y= the x offset... yay dp indexing on 6502
 	ldx #0
@@ -188,7 +216,7 @@ DrawPipeOddR
 	bcc :l1a_loop
 	rts
 
-DrawPipeEvenR
+DrawPipeEven	tax
 	sta TXTPAGE2
 	tya
 	asl	; *2
@@ -198,9 +226,6 @@ DrawPipeEvenR
 	lda LoLineTable+1,y
 	sta DSTPTR+1	; pointer to line on screen
 	txa
-	clc
-	sbc #15
-	lsr
 	pha
 	tay	; y= the x offset... yay dp indexing on 6502
 	ldx #0
@@ -226,11 +251,175 @@ DrawPipeEvenR
 	bcc :l1a_loop
 	rts
 
+* A=x(screenmemX) x=x(full96) Y=(byte)y
+DrawPipeOddR	tax	
+	sta TXTPAGE1
+	tya
+	asl	; *2
+	tay
+	lda LoLineTable,y
+	sta DSTPTR
+	lda LoLineTable+1,y
+	sta DSTPTR+1	; pointer to line on screen
+	txa
+	pha
+	tay	; y= the x offset... yay dp indexing on 6502
+	ldx #0
+:l1_loop	lda PipeSpr_Main,x
+	sta (DSTPTR),y
+	iny	; can check this for clipping?
+	cpy #RCLIP	; this works for underflow too (?) i think	
+	bcs :l1_break
+	inx
+	inx	;\_ skip a col
+	cpx #15
+	bcc :l1_loop
+:l1_break
+
+	sta TXTPAGE2
+	pla	;\
+	tay	; >- restore
+	iny	;-- pixel after - fun mapping
+	ldx #1
+:l1a_loop	lda PipeSpr_Aux,x
+	sta (DSTPTR),y
+	iny	; can check this for clipping?
+	cpy #RCLIP
+	bcs :l2_break
+	inx
+	inx	;\_ skip a col
+	cpx #15
+	bcc :l1a_loop
+:l2_break	rts
+
+DrawPipeEvenR	tax
+	sta TXTPAGE2
+	tya
+	asl	; *2
+	tay
+	lda LoLineTable,y
+	sta DSTPTR
+	lda LoLineTable+1,y
+	sta DSTPTR+1	; pointer to line on screen
+	txa
+	pha
+	tay	; y= the x offset... yay dp indexing on 6502
+	ldx #0
+:l1_loop	lda PipeSpr_Aux,x
+	sta (DSTPTR),y
+	iny	; can check this for clipping?
+	cpy #RCLIP
+	bcs :l1_break
+	inx
+	inx	;\_ skip a col
+	cpx #15
+	bcc :l1_loop
+
+:l1_break	sta TXTPAGE1
+	pla	;\
+	tay	; >- restore
+*	iny	;-- pixel after - fun mapping
+	ldx #1
+:l1a_loop	lda PipeSpr_Main,x
+	sta (DSTPTR),y
+	iny	; can check this for clipping?
+	cpy #RCLIP
+	bcs :l2_break
+	inx
+	inx	;\_ skip a col
+	cpx #15
+	bcc :l1a_loop
+:l2_break	rts
+
+* A=x(screenmemX) x=x(full96) Y=(byte)y
+DrawPipeOddL	
+	tax	
+	sta TXTPAGE1
+	tya
+	asl	; *2
+	tay
+	lda LoLineTable,y
+	sta DSTPTR
+	lda LoLineTable+1,y
+	sta DSTPTR+1	; pointer to line on screen
+	txa
+	pha
+	tay	; y= the x offset... yay dp indexing on 6502
+	ldx #0
+:l1_loop	cpy #RCLIP
+	bcs :l1_skip
+	lda PipeSpr_Main,x
+	sta (DSTPTR),y
+:l1_skip	iny	; can check this for clipping?
+	inx
+	inx	;\_ skip a col
+	cpx #15
+	bcc :l1_loop
+
+
+	sta TXTPAGE2
+	pla	;\
+	tay	; >- restore
+	iny	;-- pixel after - fun mapping
+	ldx #1
+:l1a_loop	cpy #RCLIP
+	bcs :l2_skip
+	lda PipeSpr_Aux,x
+	sta (DSTPTR),y
+:l2_skip	iny	; can check this for clipping?
+	inx
+	inx	;\_ skip a col
+	cpx #15
+	bcc :l1a_loop
+	rts
+
+DrawPipeEvenL	tax
+	sta TXTPAGE2
+	tya
+	asl	; *2
+	tay
+	lda LoLineTable,y
+	sta DSTPTR
+	lda LoLineTable+1,y
+	sta DSTPTR+1	; pointer to line on screen
+	txa
+	pha
+	tay	; y= the x offset... yay dp indexing on 6502
+	ldx #0
+:l1_loop	cpy #RCLIP
+	bcs :l1_skip
+	lda PipeSpr_Aux,x
+	sta (DSTPTR),y
+:l1_skip	iny	; can check this for clipping?
+	inx
+	inx	;\_ skip a col
+	cpx #15
+	bcc :l1_loop
+
+	sta TXTPAGE1
+	pla	;\
+	tay	; >- restore
+*	iny	;-- pixel after - fun mapping
+	ldx #1
+:l1a_loop	cpy #RCLIP
+	bcs :l2_skip
+	lda PipeSpr_Main,x
+	sta (DSTPTR),y
+:l2_skip	iny	; can check this for clipping?
+	inx
+	inx	;\_ skip a col
+	cpx #15
+	bcc :l1a_loop
+	rts
 
 
 * A=x Y=(byte)y
-DrawPipe	jsr _storeReg
+DrawPipe	;jsr _storeReg
 	jsr DrawPipeSimple
+	rts
+
+
+
 	jsr _loadReg
 	tay	;store?	
 	lsr
@@ -268,7 +457,7 @@ SpawnPipe	lda PipeSpawnSema
 	lsr	; even smaller
 	sta TopPipes+1,x
 	lda #22
-	clc
+	sec
 	sbc TopPipes+1,x
 	sta BotPipes+1,x
 	lda #95	; Build X Value ;)
@@ -380,6 +569,15 @@ WaitKey
 	bpl :kloop
 	sta STROBE
 	rts
+
+WaitSmart
+:kloop	lda KEY
+	bpl :kloop
+	sta STROBE
+	rts
+
+_WaitSmartMode db 0	;0 = no pause until magickey
+		;1 = always pause
 
 **************************************************
 * See if we're running on a IIgs
