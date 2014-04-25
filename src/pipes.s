@@ -29,15 +29,29 @@ DSTPTR2	equz  $04
 PIPE_RCLIP	equ #40
 PIPE_UNDERVAL	db 0
 
+PIPE_X_FULL	db 0	; the 0-96? X value (screen = 16-95)
+PIPE_X_IDX	db 0	; MEMORY DLR X index, 0-39 
+PIPE_Y	db 0	; MEMORY DLR Y index, 0-24
+PIPE_Y_IDX	db 0	; Y*2 for lookups in Lo-Res line table 
+PIPE_T_B	db 0	; TOP = 0, BOTTOM = 1 (non-zero)
+PIPE_TOP	equ 0	; enum for top pipe type
+PIPE_BOT	equ 1	; enum for bottom pipe type
 
 * A=x Y=(byte)y
-DrawPipeSimple 
-	tax
+DrawPipe	
+	sta PIPE_X_FULL
+	tax	
+	sty PIPE_Y
+	tya
+	asl	; *2
+	sta PIPE_Y_IDX
+	txa
 	cpx #95-12
 	bcc :notOver
 :OVER	sec	; clipped on the right.. maybe left too
 	sbc #16
 	lsr
+	sta PIPE_X_IDX
 	bcc :evenR
 :oddR	jsr DrawPipeOddR
 	rts
@@ -167,12 +181,8 @@ DrawPipeEven	tax
 	bcc :l1a_loop
 	rts
 
-* A=x(screenmemX) x=x(full96) Y=(byte)y
-DrawPipeOddR	tax	
-	sta TXTPAGE1
-	tya
-	asl	; *2
-	tay
+SetPipeCapPtrs
+	ldy PIPE_Y_IDX
 	lda LoLineTable,y
 	sta DSTPTR
 	lda LoLineTable+1,y
@@ -181,9 +191,14 @@ DrawPipeOddR	tax
 	sta DSTPTR2
 	lda LoLineTable+3,y
 	sta DSTPTR2+1	; pointer to line on screen
-	txa
-	pha
-	tay	; y= the x offset... yay dp indexing on 6502
+	rts
+
+
+* A=x(screenmemX) x=x(full96) Y=(byte)y
+DrawPipeOddR	
+	jsr SetPipeCapPtrs
+	sta TXTPAGE1	
+	ldy PIPE_X_IDX	; y= the x offset... yay dp indexing on 6502
 	ldx #0
 :l1_loop
 	cpy #PIPE_RCLIP ;this works for underflow too (?) i think	
@@ -203,8 +218,7 @@ DrawPipeOddR	tax
 :l1_break
 
 	sta TXTPAGE2
-	pla	;\
-	tay	; >- restore
+	ldy PIPE_X_IDX
 	iny	;-- pixel after - fun mapping
 	ldx #1
 :l1a_loop	
@@ -225,22 +239,9 @@ DrawPipeOddR	tax
 	rts
 
 DrawPipeEvenR	
-	tax
-	sta TXTPAGE2
-	tya
-	asl	; *2
-	tay
-	lda LoLineTable,y
-	sta DSTPTR
-	lda LoLineTable+1,y
-	sta DSTPTR+1	; pointer to line on screen
-	lda LoLineTable+2,y
-	sta DSTPTR2
-	lda LoLineTable+3,y
-	sta DSTPTR2+1	; pointer to line on screen
-	txa
-	pha
-	tay	; y= the x offset... yay dp indexing on 6502
+	jsr SetPipeCapPtrs
+	sta TXTPAGE1	
+	ldy PIPE_X_IDX	; y= the x offset... yay dp indexing on 6502
 	ldx #0
 :l1_loop	lda PipeSpr_Aux,x
 	sta (DSTPTR),y
@@ -255,9 +256,7 @@ DrawPipeEvenR
 	bcc :l1_loop
 
 :l1_break	sta TXTPAGE1
-	pla	;\
-	tay	; >- restore
-*	iny	;-- pixel after - fun mapping
+	ldy PIPE_X_IDX
 	ldx #1
 :l1a_loop
 	cpy #PIPE_RCLIP
@@ -371,12 +370,8 @@ DrawPipeEvenL	tax
 	rts
 
 
-* A=x Y=(byte)y
-DrawPipe	;jsr _storeReg
-	jsr DrawPipeSimple
-	rts
 
-
+* OLD DRAWPIPE BLIP CODE
 
 	jsr _loadReg
 	tay	;store?	

@@ -111,7 +111,11 @@ UpdatePipes	inc PipeSpawn
 
 	rts
 
-MoveDrawPipes	lda BotPipes
+MoveDrawPipes	
+	lda #PIPE_BOT
+	sta PIPE_T_B	; set bottom mode	
+
+	lda BotPipes
 	beq :noP1
 	dec BotPipes
 	ldy BotPipes+1
@@ -122,8 +126,9 @@ MoveDrawPipes	lda BotPipes
 	dec BotPipes+2
 	ldy BotPipes+3
 	jsr DrawPipe
-
 :noP2
+	lda #PIPE_TOP
+	sta PIPE_T_B	; set top mode	
 	lda TopPipes
 	beq :noP3
 	dec TopPipes
@@ -135,8 +140,8 @@ MoveDrawPipes	lda BotPipes
 	dec TopPipes+2
 	ldy TopPipes+3
 	jsr DrawPipe
-
-:noP4	rts
+:noP4
+	rts
 
 
 SpawnPipe	lda PipeSpawnSema
@@ -148,9 +153,6 @@ SpawnPipe	lda PipeSpawnSema
 	sta TopPipes+1,x
 	clc
 	adc #10
-*	lda #21
-*	sec
-*	sbc TopPipes+1,x
 	sta BotPipes+1,x
 	lda #95	; Build X Value ;)
 	sta TopPipes,x  
@@ -278,8 +280,8 @@ _WaitSmartMode db 0	;0 = no pause until magickey
 *   Apple II Family Identification
 **************************************************
 DetectIIgs	
-	sec        ;Set carry bit (flag)
-	jsr $FE1F    ;Call to the monitor
+	sec	;Set carry bit (flag)
+	jsr $FE1F	;Call to the monitor
 	bcs :oldmachine    ;If carry is still set, then old machine
 *	bcc :newmachine    ;If carry is clear, then new machine
 :newmachine   lda #1
