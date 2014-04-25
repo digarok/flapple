@@ -27,6 +27,7 @@ SRCPTR	equz  $00
 DSTPTR	equz  $02
 DSTPTR2	equz  $04
 PIPE_RCLIP	equ #40
+PIPE_WIDTH	equ #15
 PIPE_UNDERVAL	db 0
 
 PIPE_X_FULL	db 0	; the 0-96? X value (screen = 16-95)
@@ -84,10 +85,11 @@ DrawPipe
 	jsr DrawPipeEvenL
 	rts
 
-:NOCLIP
-	sec
+:NOCLIP	lda PIPE_X_FULL
+	sec 
 	sbc #16
 	lsr
+	sta PIPE_X_IDX
 	bcc :even
 :odd	
 	jsr DrawPipeOdd
@@ -96,91 +98,62 @@ DrawPipe
 	jsr DrawPipeEven
 	rts
 
-* A=x(screenmemX) x=x(full96) Y=(byte)y
-DrawPipeOdd	tax	
-	sta TXTPAGE1
-	tya
-	asl	; *2
-	tay
-	lda LoLineTable,y
-	sta DSTPTR
-	lda LoLineTable+1,y
-	sta DSTPTR+1	; pointer to line on screen
-	lda LoLineTable+2,y
-	sta DSTPTR2
-	lda LoLineTable+3,y
-	sta DSTPTR2+1	; pointer to line on screen
-	txa
-	pha
-	tay	; y= the x offset... yay dp indexing on 6502
+
+DrawPipeOdd	jsr SetPipeCapPtrs
+	sta TXTPAGE1	
+	ldy PIPE_X_IDX	; y= the x offset... yay dp indexing on 6502
 	ldx #0
 :l1_loop	lda PipeSpr_Main,x
 	sta (DSTPTR),y
-	lda PipeSpr_Main+15,x
+	lda PipeSpr_Main+PIPE_WIDTH,x
 	sta (DSTPTR2),y
 	iny	; can check this for clipping?
 	inx
 	inx	;\_ skip a col
-	cpx #15
+	cpx #PIPE_WIDTH
 	bcc :l1_loop
 
 	sta TXTPAGE2
-	pla	;\
-	tay	; >- restore
+	ldy PIPE_X_IDX
 	iny	;-- pixel after - fun mapping
 	ldx #1
-:l1a_loop	lda PipeSpr_Aux,x
+:l2_loop	lda PipeSpr_Aux,x
 	sta (DSTPTR),y
-	lda PipeSpr_Aux+15,x
+	lda PipeSpr_Aux+PIPE_WIDTH,x
 	sta (DSTPTR2),y
 	iny	; can check this for clipping?
 	inx
 	inx	;\_ skip a col
-	cpx #15
-	bcc :l1a_loop
+	cpx #PIPE_WIDTH
+	bcc :l2_loop
 	rts
 
-DrawPipeEven	tax
+DrawPipeEven	jsr SetPipeCapPtrs
 	sta TXTPAGE2
-	tya
-	asl	; *2
-	tay
-	lda LoLineTable,y
-	sta DSTPTR
-	lda LoLineTable+1,y
-	sta DSTPTR+1	; pointer to line on screen
-	lda LoLineTable+2,y
-	sta DSTPTR2
-	lda LoLineTable+3,y
-	sta DSTPTR2+1	; pointer to line on screen
-	txa
-	pha
-	tay	; y= the x offset... yay dp indexing on 6502
+	ldy PIPE_X_IDX	; y= the x offset... yay dp indexing on 6502
 	ldx #0
 :l1_loop	lda PipeSpr_Aux,x
 	sta (DSTPTR),y
-	lda PipeSpr_Aux+15,x
+	lda PipeSpr_Aux+PIPE_WIDTH,x
 	sta (DSTPTR2),y
 	iny	; can check this for clipping?
 	inx
 	inx	;\_ skip a col
-	cpx #15
+	cpx #PIPE_WIDTH
 	bcc :l1_loop
 
 	sta TXTPAGE1
-	pla	;\
-	tay	; >- restore
-*	iny	;-- pixel after - fun mapping
+	ldy PIPE_X_IDX
 	ldx #1
-:l1a_loop	lda PipeSpr_Main,x
+:l2_loop	lda PipeSpr_Main,x
 	sta (DSTPTR),y
-	lda PipeSpr_Main+15,x
+	lda PipeSpr_Main+PIPE_WIDTH,x
 	sta (DSTPTR2),y
 	iny	; can check this for clipping?
 	inx
 	inx	;\_ skip a col
-	cpx #15
-	bcc :l1a_loop
+	cpx #PIPE_WIDTH
+	bcc :l2_loop
 	rts
 
 SetPipeCapPtrs
@@ -208,14 +181,14 @@ DrawPipeOddR
 
 	lda PipeSpr_Main,x
 	sta (DSTPTR),y
-	lda PipeSpr_Main+15,x
+	lda PipeSpr_Main+PIPE_WIDTH,x
 	sta (DSTPTR2),y
 	
 
 	iny	; can check this for clipping?
 	inx
 	inx	;\_ skip a col
-	cpx #15
+	cpx #PIPE_WIDTH
 	bcc :l1_loop
 :l1_break
 
@@ -229,13 +202,13 @@ DrawPipeOddR
 
 	lda PipeSpr_Aux,x
 	sta (DSTPTR),y
-	lda PipeSpr_Aux+15,x
+	lda PipeSpr_Aux+PIPE_WIDTH,x
 	sta (DSTPTR2),y
 
 	iny	; can check this for clipping?
 	inx
 	inx	;\_ skip a col
-	cpx #15
+	cpx #PIPE_WIDTH
 	bcc :l1a_loop
 :l2_break	
 	rts
@@ -247,14 +220,14 @@ DrawPipeEvenR
 	ldx #0
 :l1_loop	lda PipeSpr_Aux,x
 	sta (DSTPTR),y
-	lda PipeSpr_Aux+15,x
+	lda PipeSpr_Aux+PIPE_WIDTH,x
 	sta (DSTPTR2),y
 	iny	; can check this for clipping?
 	cpy #PIPE_RCLIP
 	bcs :l1_break
 	inx
 	inx	;\_ skip a col
-	cpx #15
+	cpx #PIPE_WIDTH
 	bcc :l1_loop
 
 :l1_break	sta TXTPAGE1
@@ -265,12 +238,12 @@ DrawPipeEvenR
 	bcs :l2_break
 	lda PipeSpr_Main,x
 	sta (DSTPTR),y
-	lda PipeSpr_Main+15,x
+	lda PipeSpr_Main+PIPE_WIDTH,x
 	sta (DSTPTR2),y
 	iny	; can check this for clipping?
 	inx
 	inx	;\_ skip a col
-	cpx #15
+	cpx #PIPE_WIDTH
 	bcc :l1a_loop
 :l2_break	rts
 
@@ -284,12 +257,12 @@ DrawPipeOddL
 	bcs :l1_skip
 	lda PipeSpr_Main,x
 	sta (DSTPTR),y
-	lda PipeSpr_Main+15,x
+	lda PipeSpr_Main+PIPE_WIDTH,x
 	sta (DSTPTR2),y
 :l1_skip	iny	; can check this for clipping?
 	inx
 	inx	;\_ skip a col
-	cpx #15
+	cpx #PIPE_WIDTH
 	bcc :l1_loop
 
 
@@ -301,12 +274,12 @@ DrawPipeOddL
 	bcs :l2_skip
 	lda PipeSpr_Aux,x
 	sta (DSTPTR),y
-	lda PipeSpr_Aux+15,x
+	lda PipeSpr_Aux+PIPE_WIDTH,x
 	sta (DSTPTR2),y
 :l2_skip	iny	; can check this for clipping?
 	inx
 	inx	;\_ skip a col
-	cpx #15
+	cpx #PIPE_WIDTH
 	bcc :l2_loop
 	rts
 
@@ -319,12 +292,12 @@ DrawPipeEvenL
 	bcs :l1_skip
 	lda PipeSpr_Aux,x
 	sta (DSTPTR),y
-	lda PipeSpr_Aux+15,x
+	lda PipeSpr_Aux+PIPE_WIDTH,x
 	sta (DSTPTR2),y
 :l1_skip	iny	; can check this for clipping?
 	inx
 	inx	;\_ skip a col
-	cpx #15
+	cpx #PIPE_WIDTH
 	bcc :l1_loop
 
 	sta TXTPAGE1
@@ -334,12 +307,12 @@ DrawPipeEvenL
 	bcs :l2_skip
 	lda PipeSpr_Main,x
 	sta (DSTPTR),y
-	lda PipeSpr_Main+15,x
+	lda PipeSpr_Main+PIPE_WIDTH,x
 	sta (DSTPTR2),y
 :l2_skip	iny	; can check this for clipping?
 	inx
 	inx	;\_ skip a col
-	cpx #15
+	cpx #PIPE_WIDTH
 	bcc :l2_loop
 	rts
 
