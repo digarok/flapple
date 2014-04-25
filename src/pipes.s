@@ -58,7 +58,7 @@ DrawPipe
 :evenR	jsr DrawPipeEvenR
 	rts
 :notOver	cpx #16
-	bcs :notUnder
+	bcs :NOCLIP
 :UNDER			; X = 0-16	
 	stx PIPE_UNDERVAL	; we're going to flip it around
 	lda #16		; and move backwards from 0.  
@@ -76,21 +76,23 @@ DrawPipe
 	bcc :evenL
 :oddL	dex	; downshift * 1
 	txa	
+	sta PIPE_X_IDX
 	jsr DrawPipeOddL
 	rts
 :evenL	txa
+	sta PIPE_X_IDX
 	jsr DrawPipeEvenL
 	rts
 
-:notUnder		; in screen bounds so give real memory x offset
+:NOCLIP
 	sec
 	sbc #16
 	lsr
 	bcc :even
-:odd	;txa
+:odd	
 	jsr DrawPipeOdd
 	rts
-:even	;txa
+:even
 	jsr DrawPipeEven
 	rts
 
@@ -274,22 +276,9 @@ DrawPipeEvenR
 
 * A=x(screenmemX) x=x(full96) Y=(byte)y
 DrawPipeOddL	
-	tax	
+	jsr SetPipeCapPtrs
 	sta TXTPAGE1
-	tya
-	asl	; *2
-	tay
-	lda LoLineTable,y
-	sta DSTPTR
-	lda LoLineTable+1,y
-	sta DSTPTR+1	; pointer to line on screen
-	lda LoLineTable+2,y
-	sta DSTPTR2
-	lda LoLineTable+3,y
-	sta DSTPTR2+1	; pointer to line on screen
-	txa
-	pha
-	tay	; y= the x offset... yay dp indexing on 6502
+	ldy PIPE_X_IDX	; y= the x offset... yay dp indexing on 6502
 	ldx #0
 :l1_loop	cpy #PIPE_RCLIP
 	bcs :l1_skip
@@ -305,11 +294,10 @@ DrawPipeOddL
 
 
 	sta TXTPAGE2
-	pla	;\
-	tay	; >- restore
+	ldy PIPE_X_IDX
 	iny	;-- pixel after - fun mapping
 	ldx #1
-:l1a_loop	cpy #PIPE_RCLIP
+:l2_loop	cpy #PIPE_RCLIP
 	bcs :l2_skip
 	lda PipeSpr_Aux,x
 	sta (DSTPTR),y
@@ -319,25 +307,13 @@ DrawPipeOddL
 	inx
 	inx	;\_ skip a col
 	cpx #15
-	bcc :l1a_loop
+	bcc :l2_loop
 	rts
 
-DrawPipeEvenL	tax
-	sta TXTPAGE2
-	tya
-	asl	; *2
-	tay
-	lda LoLineTable,y
-	sta DSTPTR
-	lda LoLineTable+1,y
-	sta DSTPTR+1	; pointer to line on screen
-	lda LoLineTable+2,y
-	sta DSTPTR2
-	lda LoLineTable+3,y
-	sta DSTPTR2+1	; pointer to line on screen
-	txa
-	pha
-	tay	; y= the x offset... yay dp indexing on 6502
+DrawPipeEvenL	
+	jsr SetPipeCapPtrs
+	sta TXTPAGE2	
+	ldy PIPE_X_IDX	; y= the x offset... yay dp indexing on 6502
 	ldx #0
 :l1_loop	cpy #PIPE_RCLIP
 	bcs :l1_skip
@@ -352,11 +328,9 @@ DrawPipeEvenL	tax
 	bcc :l1_loop
 
 	sta TXTPAGE1
-	pla	;\
-	tay	; >- restore
-*	iny	;-- pixel after - fun mapping
+	ldy PIPE_X_IDX
 	ldx #1
-:l1a_loop	cpy #PIPE_RCLIP
+:l2_loop	cpy #PIPE_RCLIP
 	bcs :l2_skip
 	lda PipeSpr_Main,x
 	sta (DSTPTR),y
@@ -366,7 +340,7 @@ DrawPipeEvenL	tax
 	inx
 	inx	;\_ skip a col
 	cpx #15
-	bcc :l1a_loop
+	bcc :l2_loop
 	rts
 
 
