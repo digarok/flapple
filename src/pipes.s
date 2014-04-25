@@ -25,6 +25,7 @@
 
 SRCPTR	equz  $00
 DSTPTR	equz  $02
+DSTPTR2	equz  $04
 PIPE_RCLIP	equ #40
 PIPE_UNDERVAL	db 0
 
@@ -89,12 +90,18 @@ DrawPipeOdd	tax
 	sta DSTPTR
 	lda LoLineTable+1,y
 	sta DSTPTR+1	; pointer to line on screen
+	lda LoLineTable+2,y
+	sta DSTPTR2
+	lda LoLineTable+3,y
+	sta DSTPTR2+1	; pointer to line on screen
 	txa
 	pha
 	tay	; y= the x offset... yay dp indexing on 6502
 	ldx #0
 :l1_loop	lda PipeSpr_Main,x
 	sta (DSTPTR),y
+	lda PipeSpr_Main+15,x
+	sta (DSTPTR2),y
 	iny	; can check this for clipping?
 	inx
 	inx	;\_ skip a col
@@ -108,6 +115,8 @@ DrawPipeOdd	tax
 	ldx #1
 :l1a_loop	lda PipeSpr_Aux,x
 	sta (DSTPTR),y
+	lda PipeSpr_Aux+15,x
+	sta (DSTPTR2),y
 	iny	; can check this for clipping?
 	inx
 	inx	;\_ skip a col
@@ -124,12 +133,18 @@ DrawPipeEven	tax
 	sta DSTPTR
 	lda LoLineTable+1,y
 	sta DSTPTR+1	; pointer to line on screen
+	lda LoLineTable+2,y
+	sta DSTPTR2
+	lda LoLineTable+3,y
+	sta DSTPTR2+1	; pointer to line on screen
 	txa
 	pha
 	tay	; y= the x offset... yay dp indexing on 6502
 	ldx #0
 :l1_loop	lda PipeSpr_Aux,x
 	sta (DSTPTR),y
+	lda PipeSpr_Aux+15,x
+	sta (DSTPTR2),y
 	iny	; can check this for clipping?
 	inx
 	inx	;\_ skip a col
@@ -143,6 +158,8 @@ DrawPipeEven	tax
 	ldx #1
 :l1a_loop	lda PipeSpr_Main,x
 	sta (DSTPTR),y
+	lda PipeSpr_Main+15,x
+	sta (DSTPTR2),y
 	iny	; can check this for clipping?
 	inx
 	inx	;\_ skip a col
@@ -160,15 +177,25 @@ DrawPipeOddR	tax
 	sta DSTPTR
 	lda LoLineTable+1,y
 	sta DSTPTR+1	; pointer to line on screen
+	lda LoLineTable+2,y
+	sta DSTPTR2
+	lda LoLineTable+3,y
+	sta DSTPTR2+1	; pointer to line on screen
 	txa
 	pha
 	tay	; y= the x offset... yay dp indexing on 6502
 	ldx #0
-:l1_loop	lda PipeSpr_Main,x
-	sta (DSTPTR),y
-	iny	; can check this for clipping?
+:l1_loop
 	cpy #PIPE_RCLIP ;this works for underflow too (?) i think	
 	bcs :l1_break
+
+	lda PipeSpr_Main,x
+	sta (DSTPTR),y
+	lda PipeSpr_Main+15,x
+	sta (DSTPTR2),y
+	
+
+	iny	; can check this for clipping?
 	inx
 	inx	;\_ skip a col
 	cpx #15
@@ -180,18 +207,25 @@ DrawPipeOddR	tax
 	tay	; >- restore
 	iny	;-- pixel after - fun mapping
 	ldx #1
-:l1a_loop	lda PipeSpr_Aux,x
-	sta (DSTPTR),y
-	iny	; can check this for clipping?
+:l1a_loop	
 	cpy #PIPE_RCLIP
 	bcs :l2_break
+
+	lda PipeSpr_Aux,x
+	sta (DSTPTR),y
+	lda PipeSpr_Aux+15,x
+	sta (DSTPTR2),y
+
+	iny	; can check this for clipping?
 	inx
 	inx	;\_ skip a col
 	cpx #15
 	bcc :l1a_loop
-:l2_break	rts
+:l2_break	
+	rts
 
-DrawPipeEvenR	tax
+DrawPipeEvenR	
+	tax
 	sta TXTPAGE2
 	tya
 	asl	; *2
@@ -200,12 +234,18 @@ DrawPipeEvenR	tax
 	sta DSTPTR
 	lda LoLineTable+1,y
 	sta DSTPTR+1	; pointer to line on screen
+	lda LoLineTable+2,y
+	sta DSTPTR2
+	lda LoLineTable+3,y
+	sta DSTPTR2+1	; pointer to line on screen
 	txa
 	pha
 	tay	; y= the x offset... yay dp indexing on 6502
 	ldx #0
 :l1_loop	lda PipeSpr_Aux,x
 	sta (DSTPTR),y
+	lda PipeSpr_Aux+15,x
+	sta (DSTPTR2),y
 	iny	; can check this for clipping?
 	cpy #PIPE_RCLIP
 	bcs :l1_break
@@ -219,11 +259,14 @@ DrawPipeEvenR	tax
 	tay	; >- restore
 *	iny	;-- pixel after - fun mapping
 	ldx #1
-:l1a_loop	lda PipeSpr_Main,x
-	sta (DSTPTR),y
-	iny	; can check this for clipping?
+:l1a_loop
 	cpy #PIPE_RCLIP
 	bcs :l2_break
+	lda PipeSpr_Main,x
+	sta (DSTPTR),y
+	lda PipeSpr_Main+15,x
+	sta (DSTPTR2),y
+	iny	; can check this for clipping?
 	inx
 	inx	;\_ skip a col
 	cpx #15
@@ -241,6 +284,10 @@ DrawPipeOddL
 	sta DSTPTR
 	lda LoLineTable+1,y
 	sta DSTPTR+1	; pointer to line on screen
+	lda LoLineTable+2,y
+	sta DSTPTR2
+	lda LoLineTable+3,y
+	sta DSTPTR2+1	; pointer to line on screen
 	txa
 	pha
 	tay	; y= the x offset... yay dp indexing on 6502
@@ -249,6 +296,8 @@ DrawPipeOddL
 	bcs :l1_skip
 	lda PipeSpr_Main,x
 	sta (DSTPTR),y
+	lda PipeSpr_Main+15,x
+	sta (DSTPTR2),y
 :l1_skip	iny	; can check this for clipping?
 	inx
 	inx	;\_ skip a col
@@ -265,6 +314,8 @@ DrawPipeOddL
 	bcs :l2_skip
 	lda PipeSpr_Aux,x
 	sta (DSTPTR),y
+	lda PipeSpr_Aux+15,x
+	sta (DSTPTR2),y
 :l2_skip	iny	; can check this for clipping?
 	inx
 	inx	;\_ skip a col
@@ -281,6 +332,10 @@ DrawPipeEvenL	tax
 	sta DSTPTR
 	lda LoLineTable+1,y
 	sta DSTPTR+1	; pointer to line on screen
+	lda LoLineTable+2,y
+	sta DSTPTR2
+	lda LoLineTable+3,y
+	sta DSTPTR2+1	; pointer to line on screen
 	txa
 	pha
 	tay	; y= the x offset... yay dp indexing on 6502
@@ -289,6 +344,8 @@ DrawPipeEvenL	tax
 	bcs :l1_skip
 	lda PipeSpr_Aux,x
 	sta (DSTPTR),y
+	lda PipeSpr_Aux+15,x
+	sta (DSTPTR2),y
 :l1_skip	iny	; can check this for clipping?
 	inx
 	inx	;\_ skip a col
@@ -304,6 +361,8 @@ DrawPipeEvenL	tax
 	bcs :l2_skip
 	lda PipeSpr_Main,x
 	sta (DSTPTR),y
+	lda PipeSpr_Main+15,x
+	sta (DSTPTR2),y
 :l2_skip	iny	; can check this for clipping?
 	inx
 	inx	;\_ skip a col

@@ -109,7 +109,6 @@ UpdatePipes	inc PipeSpawn
 	sta PipeSpawn
 :noSpawn	jsr MoveDrawPipes
 
-
 	rts
 
 MoveDrawPipes	lda BotPipes
@@ -124,7 +123,20 @@ MoveDrawPipes	lda BotPipes
 	ldy BotPipes+3
 	jsr DrawPipe
 
-:noP2	rts
+:noP2
+	lda TopPipes
+	beq :noP3
+	dec TopPipes
+	ldy TopPipes+1
+	jsr DrawPipe
+:noP3
+	lda TopPipes+2
+	beq :noP4
+	dec TopPipes+2
+	ldy TopPipes+3
+	jsr DrawPipe
+
+:noP4	rts
 
 
 SpawnPipe	lda PipeSpawnSema
@@ -134,9 +146,11 @@ SpawnPipe	lda PipeSpawnSema
 	and #$0F	; @todo - this doesn't check bounds.. just for testing
 	lsr	; even smaller
 	sta TopPipes+1,x
-	lda #22
-	sec
-	sbc TopPipes+1,x
+	clc
+	adc #10
+*	lda #21
+*	sec
+*	sbc TopPipes+1,x
 	sta BotPipes+1,x
 	lda #95	; Build X Value ;)
 	sta TopPipes,x  
