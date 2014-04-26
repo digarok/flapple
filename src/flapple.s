@@ -38,7 +38,7 @@ GameLoop
 	jsr UpdatePipes
 	jsr UpdateGrass
 	jsr VBlank
-*jsr WaitKey
+	jsr WaitKey
 
 
 
@@ -82,16 +82,6 @@ BotPipes	hex 00,00,00,00
 BotPipeMin	equ 3
 BotPipeMax    equ 8
 	
-PipeSpr_Main
-	hex 55,e5,e5,c5,e5,c5,c5,c5,c5,45,c5,45,45,55,77
-	hex 55,5e,5e,5c,5e,5c,5c,5c,5c,54,5c,54,54,55,77
-	hex 77,55,ee,ee,cc,ee,cc,cc,44,cc,44,44,55,77,77
-
-
-PipeSpr_Aux
-	hex aa,7a,7a,6a,7a,6a,6a,6a,6a,2a,6a,2a,2a,aa,bb
-	hex aa,a7,a7,a6,a7,a6,a6,a6,a6,a2,a6,a2,a2,aa,bb
-	hex bb,aa,77,77,66,77,66,66,22,66,22,22,aa,bb,bb
 
 * pipe min  =  15x6 pixels  =  15x3 bytes
 * playfield =  80x48 pixels =  80x24 bytes
