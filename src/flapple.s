@@ -40,6 +40,18 @@ PipeTester	ldx #PIPE_BOT
               ldy #15
               jsr DrawPipe
 	jsr WaitKey
+
+	ldx #PIPE_TOP
+	lda #20+16
+	ldy #8
+	jsr DrawPipe
+
+	jsr WaitKey
+	ldx #PIPE_TOP
+              lda #45+16
+              ldy #1
+              jsr DrawPipe
+	jsr WaitKey
 NoTest
 
 
@@ -54,7 +66,7 @@ GameLoop
 	jsr UpdatePipes
 	jsr UpdateGrass
 	jsr VBlank
-	jsr WaitKey
+*jsr WaitKey
 
 
 
