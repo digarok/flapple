@@ -29,15 +29,13 @@ Main
 	sec
 	bcs NoTest
 
-PipeTester	lda #PIPE_BOT
-	sta PIPE_T_B
+PipeTester	ldx #PIPE_BOT
 	lda #20+16
 	ldy #15
 	jsr DrawPipe
 
 	jsr WaitKey
-	lda #PIPE_BOT
-              sta PIPE_T_B
+	ldx #PIPE_BOT
               lda #45+16
               ldy #15
               jsr DrawPipe
@@ -120,33 +118,32 @@ UpdatePipes	inc PipeSpawn
 	rts
 
 MoveDrawPipes	
-	lda #PIPE_BOT
-	sta PIPE_T_B	; set bottom mode	
-
 	lda BotPipes
 	beq :noP1
 	dec BotPipes
 	ldy BotPipes+1
+	ldx #PIPE_BOT
 	jsr DrawPipe
 :noP1
 	lda BotPipes+2
 	beq :noP2
 	dec BotPipes+2
 	ldy BotPipes+3
+	ldx #PIPE_BOT
 	jsr DrawPipe
 :noP2
-	lda #PIPE_TOP
-	sta PIPE_T_B	; set top mode	
 	lda TopPipes
 	beq :noP3
 	dec TopPipes
 	ldy TopPipes+1
+	ldx #PIPE_TOP
 	jsr DrawPipe
 :noP3
 	lda TopPipes+2
 	beq :noP4
 	dec TopPipes+2
 	ldy TopPipes+3
+	ldx #PIPE_TOP
 	jsr DrawPipe
 :noP4
 	rts

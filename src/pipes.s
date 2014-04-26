@@ -43,6 +43,10 @@ PIPE_X_IDX	db 0	; MEMORY DLR X index, 0-39
 PIPE_Y	db 0	; MEMORY DLR Y index, 0-24
 PIPE_Y_IDX	db 0	; Y*2 for lookups in Lo-Res line table 
 PIPE_T_B	db 0	; TOP = 0, BOTTOM = 1 (non-zero)
+PIPE_BODY_TOP db 0	; Y val 
+PIPE_BODY_BOT db 0	; Y val 
+PIPE_EVEN_ODD db 0	; 0=even, Y=odd 
+
 PIPE_TOP	equ 0	; enum for top pipe type
 PIPE_BOT	equ 1	; enum for bottom pipe type
 
@@ -60,16 +64,18 @@ SetPipeCapPtrs
 	rts
 
 
-* A=x Y=(byte)y
-DrawPipe	
+* A=x Y=(byte)y X=pipe top/bottom
+DrawPipe
+	stx PIPE_T_B
 	sta PIPE_X_FULL
-	tax	
 	sty PIPE_Y
+	
 	tya
 	asl	; *2
 	sta PIPE_Y_IDX
-	txa
-	cpx #95-12
+
+	lda PIPE_X_FULL
+	cmp #95-12
 	bcc :notOver
 :OVER	sec	; clipped on the right.. maybe left too
 	sbc #16
@@ -80,10 +86,10 @@ DrawPipe
 	rts
 :evenR	jsr DrawPipeEvenR
 	rts
-:notOver	cpx #16
+:notOver	cmp #16
 	bcs :NOCLIP
 :UNDER			; X = 0-16	
-	stx PIPE_UNDERVAL	; we're going to flip it around
+	sta PIPE_UNDERVAL	; we're going to flip it around
 	lda #16		; and move backwards from 0.  
 	sec
 	sbc PIPE_UNDERVAL
@@ -242,6 +248,13 @@ DrawPipeEven	jsr SetPipeCapPtrs
 
 DrawPipeEvenT  
 	rts
+
+DrawPipeBody	lda PIPE_T_B
+	beq :pipeTop
+:pipeBottom
+
+:pipeTop
+
 
 DrawPipeEvenB  
 	inc PIPE_Y_IDX	; set to advance to 3rd line (2) of sprite pos
