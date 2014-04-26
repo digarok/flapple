@@ -66,7 +66,7 @@ GameLoop
 	jsr UpdatePipes
 	jsr UpdateGrass
 	jsr VBlank
-	jsr WaitKey
+*jsr WaitKey
 
 
 
