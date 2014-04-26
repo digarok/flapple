@@ -26,6 +26,24 @@ Main
 	lda #$77
 	jsr DL_Clear
 
+	sec
+	bcs NoTest
+
+PipeTester	lda #PIPE_BOT
+	sta PIPE_T_B
+	lda #20+16
+	ldy #15
+	jsr DrawPipe
+
+	jsr WaitKey
+	lda #PIPE_BOT
+              sta PIPE_T_B
+              lda #45+16
+              ldy #15
+              jsr DrawPipe
+	jsr WaitKey
+NoTest
+
 
 GameLoop	
 	; handle input

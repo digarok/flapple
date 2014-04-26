@@ -173,7 +173,7 @@ DrawPipeOddB
 	
 	sta TXTPAGE1
 	ldy PIPE_X_IDX
-	ldx #1
+	ldx #0
 :l1_loop	cpy #PIPE_RCLIP
 	beq :l1_clip_break	
 	lda 2*PIPE_WIDTH+PipeSpr_Main,x ; line 2
@@ -187,7 +187,8 @@ DrawPipeOddB
 
 	sta TXTPAGE2
 	ldy PIPE_X_IDX
-	ldx #0
+	iny	; THE MOST IMPORTANT INY EVAR!!! :P
+	ldx #1
 :l2_loop	cpy #PIPE_RCLIP
 	beq :l2_clip_break	
 	lda 2*PIPE_WIDTH+PipeSpr_Aux,x ; line 2
@@ -230,8 +231,62 @@ DrawPipeEven	jsr SetPipeCapPtrs
 	inx	;\_ skip a col
 	cpx #PIPE_WIDTH
 	bcc :l2_loop
+* Handle body 
+	lda PIPE_T_B	; TOP or BOTTOM ?
+	bne :doBottom
+	rts	; @TODO!!! starting with bottom
+:doTop	jsr DrawPipeEvenT
+	rts
+:doBottom	jsr DrawPipeEvenB
 	rts
 
+DrawPipeEvenT  
+	rts
+
+DrawPipeEvenB  
+	inc PIPE_Y_IDX	; set to advance to 3rd line (2) of sprite pos
+	inc PIPE_Y_IDX	; 
+
+:loop	inc PIPE_Y_IDX	; remember this is the *2 table lookup	
+	inc PIPE_Y_IDX
+	ldy PIPE_Y_IDX
+	cpy #44	; make sure we haven't hit bottom... pun intended
+	beq :done
+	lda LoLineTable,y
+	sta DSTPTR
+	lda LoLineTable+1,y
+	sta DSTPTR+1	; pointer to line on screen
+	
+	sta TXTPAGE2
+	ldy PIPE_X_IDX
+	ldx #0
+:l1_loop	cpy #PIPE_RCLIP
+	beq :l1_clip_break	
+	lda 2*PIPE_WIDTH+PipeSpr_Aux,x ; line 2
+	sta (DSTPTR),y
+	iny
+	inx
+	inx
+	cpx #PIPE_WIDTH
+	bcc :l1_loop
+:l1_clip_break
+
+	sta TXTPAGE1
+	ldy PIPE_X_IDX
+	ldx #1
+:l2_loop	cpy #PIPE_RCLIP
+	beq :l2_clip_break	
+	lda 2*PIPE_WIDTH+PipeSpr_Main,x ; line 2
+	sta (DSTPTR),y
+	iny
+	inx
+	inx
+	cpx #PIPE_WIDTH
+	bcc :l2_loop
+:l2_clip_break sec
+	bcs :loop
+
+:done	rts
 
 
 DrawPipeOddR
@@ -303,7 +358,7 @@ DrawPipeEvenR
 :l1_break	sta TXTPAGE1
 	ldy PIPE_X_IDX
 	ldx #1
-:l1a_loop
+:l2_loop
 	cpy #PIPE_RCLIP
 	bcs :l2_break
 	lda PipeSpr_Main,x
@@ -314,8 +369,17 @@ DrawPipeEvenR
 	inx
 	inx	;\_ skip a col
 	cpx #PIPE_WIDTH
-	bcc :l1a_loop
-:l2_break	rts
+	bcc :l2_loop
+:l2_break	
+
+* Handle body 
+	lda PIPE_T_B	; TOP or BOTTOM ?
+	bne :doBottom
+	rts	; @TODO!!! starting with bottom
+:doTop	jsr DrawPipeEvenT
+	rts
+:doBottom	jsr DrawPipeEvenB
+	rts
 
 DrawPipeOddL	
 	jsr SetPipeCapPtrs
@@ -376,7 +440,7 @@ DrawPipeOddBL
 	
 	sta TXTPAGE1
 	ldy PIPE_X_IDX
-	ldx #1
+	ldx #0
 :l1_loop	cpy #PIPE_RCLIP
 	bcs :l1_clip_skip
 	lda 2*PIPE_WIDTH+PipeSpr_Main,x ; line 2
@@ -390,7 +454,8 @@ DrawPipeOddBL
 
 	sta TXTPAGE2
 	ldy PIPE_X_IDX
-	ldx #0
+	iny	; THE MOST IMPORTANT INY EVAR!!! :P
+	ldx #1
 :l2_loop	cpy #PIPE_RCLIP
 	bcs :l2_clip_skip
 	lda 2*PIPE_WIDTH+PipeSpr_Aux,x ; line 2
@@ -436,8 +501,62 @@ DrawPipeEvenL
 	inx	;\_ skip a col
 	cpx #PIPE_WIDTH
 	bcc :l2_loop
+
+
+*** Handle body 
+	lda PIPE_T_B	; TOP or BOTTOM ?
+	bne :doBottom
+	rts	; @TODO!!! starting with bottom
+:doTop	jsr DrawPipeEvenT
+	rts
+:doBottom	jsr DrawPipeEvenBL
 	rts
 
+
+DrawPipeEvenBL
+	inc PIPE_Y_IDX	; set to advance to 3rd line (2) of sprite pos
+	inc PIPE_Y_IDX	; 
+
+:loop	inc PIPE_Y_IDX	; remember this is the *2 table lookup	
+	inc PIPE_Y_IDX
+	ldy PIPE_Y_IDX
+	cpy #44	; make sure we haven't hit bottom... pun intended
+	beq :done
+	lda LoLineTable,y
+	sta DSTPTR
+	lda LoLineTable+1,y
+	sta DSTPTR+1	; pointer to line on screen
+	
+	sta TXTPAGE1
+	ldy PIPE_X_IDX
+	ldx #1
+:l1_loop	cpy #PIPE_RCLIP
+	bcs :l1_clip_skip
+	lda 2*PIPE_WIDTH+PipeSpr_Main,x ; line 2
+	sta (DSTPTR),y
+:l1_clip_skip	iny
+	inx
+	inx
+	cpx #PIPE_WIDTH
+	bcc :l1_loop
+:l1_clip_break
+
+	sta TXTPAGE2
+	ldy PIPE_X_IDX
+	ldx #0
+:l2_loop	cpy #PIPE_RCLIP
+	bcs :l2_clip_skip
+	lda 2*PIPE_WIDTH+PipeSpr_Aux,x ; line 2
+	sta (DSTPTR),y
+:l2_clip_skip	iny
+	inx
+	inx
+	cpx #PIPE_WIDTH
+	bcc :l2_loop
+:l2_clip_break sec
+	bcs :loop
+
+:done	rts
 
 
 * OLD DRAWPIPE BLIP CODE
