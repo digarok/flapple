@@ -162,61 +162,36 @@ DrawPipeOdd	jsr SetPipeCapPtrs
 :doBottom	jsr DrawPipeOddB
 	rts
 
-DrawPipeOddB  
-	inc PIPE_Y_IDX	; set to advance to 3rd line (2) of sprite pos
-	inc PIPE_Y_IDX	; 
-
-:loop	inc PIPE_Y_IDX	; remember this is the *2 table lookup	
-	inc PIPE_Y_IDX
-	ldy PIPE_Y_IDX
-	cpy #44	; make sure we haven't hit bottom... pun intended
-	beq :done
-	lda LoLineTable,y
-	sta DSTPTR
-	lda LoLineTable+1,y
-	sta DSTPTR+1	; pointer to line on screen
-	
-	sta TXTPAGE1
-	ldy PIPE_X_IDX
-	ldx #0
-:l1_loop	cpy #PIPE_RCLIP
-	beq :l1_clip_break	
-	lda 2*PIPE_WIDTH+PipeSpr_Main,x ; line 2
-	sta (DSTPTR),y
-	iny
-	inx
-	inx
-	cpx #PIPE_WIDTH
-	bcc :l1_loop
-:l1_clip_break
-
-	sta TXTPAGE2
-	ldy PIPE_X_IDX
-	iny	; THE MOST IMPORTANT INY EVAR!!! :P
-	ldx #1
-:l2_loop	cpy #PIPE_RCLIP
-	beq :l2_clip_break	
-	lda 2*PIPE_WIDTH+PipeSpr_Aux,x ; line 2
-	sta (DSTPTR),y
-	iny
-	inx
-	inx
-	cpx #PIPE_WIDTH
-	bcc :l2_loop
-:l2_clip_break sec
-	bcs :loop
-
-:done	rts
-
-DrawPipeBody	
+****************************************
+*** Draw Body - Top Full & Right version
 DrawPipeOddT  
 	lda #0
 	sta PIPE_BODY_TOP
 	sta PIPE_Y_IDX	; current line
 	lda PIPE_Y
 	sta PIPE_BODY_BOT
+	jsr DrawPipeBodyOdd
+	rts
+
+*******************************************
+*** Draw Body - Bottom Full & Right version
+DrawPipeOddB
+	ldy PIPE_Y
+	iny
+	iny
+	sty PIPE_BODY_TOP
+	tya
+	asl		; *2 
+	sta PIPE_Y_IDX	; current line
+	lda #44
+	sta PIPE_BODY_BOT
+	jsr DrawPipeBodyOdd
+	rts
 
 
+****************************************
+*** Draw Body - Odd Full & Right version
+DrawPipeBodyOdd
 :loop	lda PIPE_Y_IDX
 	lsr	; /2
 	cmp PIPE_BODY_BOT
@@ -669,33 +644,3 @@ DrawPipeEvenBL
 :done	rts
 
 
-* OLD DRAWPIPE BLIP CODE
-
-	jsr _loadReg
-	tay	;store?	
-	lsr
-	bcc DrawBlipEven
-DrawBlipOdd   sta TXTPAGE1
-	sec
-	sbc #$08
-	tax
-	lda #$11
-	sta Lo15,x
-	cpx #40	;test---
-	bcs :noUndraw	
-	sta TXTPAGE2
-	lda #$BB
-	sta Lo15+1,x
-:noUndraw	rts
-DrawBlipEven	sta TXTPAGE2
-	sec
-	sbc #$08
-	tax
-	lda #$88
-	sta Lo15,x
-	cpx #40	;test---
-	bcs :noUndraw
-	sta TXTPAGE1
-	lda #$77
-	sta Lo15,x
-:noUndraw	rts
