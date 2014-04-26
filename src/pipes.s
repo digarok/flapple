@@ -478,21 +478,46 @@ DrawPipeOddL
 *** Handle body 
 	lda PIPE_T_B	; TOP or BOTTOM ?
 	bne :doBottom
-	rts	; @TODO!!! starting with bottom
-:doTop	jsr DrawPipeOddT
+:doTop	jsr DrawPipeOddTL
 	rts
 :doBottom	jsr DrawPipeOddBL
 	rts
 
-DrawPipeOddBL
-	inc PIPE_Y_IDX	; set to advance to 3rd line (2) of sprite pos
-	inc PIPE_Y_IDX	; 
+************************************
+*** Draw Body - Odd Top Left version
+DrawPipeOddTL
+	lda #0
+	sta PIPE_BODY_TOP
+	sta PIPE_Y_IDX              ; current line
+	lda PIPE_Y
+	sta PIPE_BODY_BOT
+	jsr DrawPipeBodyOddL
+	rts
 
-:loop	inc PIPE_Y_IDX	; remember this is the *2 table lookup	
-	inc PIPE_Y_IDX
-	ldy PIPE_Y_IDX
-	cpy #44	; make sure we haven't hit bottom... pun intended
+***************************************
+*** Draw Body - Odd Bottom Left version
+DrawPipeOddBL
+	ldy PIPE_Y
+	iny
+	iny
+	sty PIPE_BODY_TOP
+	tya
+	asl		; *2 
+	sta PIPE_Y_IDX	; current line
+	lda #22
+	sta PIPE_BODY_BOT
+	jsr DrawPipeBodyOddL
+	rts
+
+********************************
+*** Draw Body - Odd Left version
+DrawPipeBodyOddL
+:loop	lda PIPE_Y_IDX
+	lsr	; *2
+	cmp PIPE_BODY_BOT
 	beq :done
+	ldy PIPE_Y_IDX
+
 	lda LoLineTable,y
 	sta DSTPTR
 	lda LoLineTable+1,y
@@ -525,10 +550,14 @@ DrawPipeOddBL
 	inx
 	cpx #PIPE_WIDTH
 	bcc :l2_loop
-:l2_clip_break sec
+:l2_clip_break
+	inc PIPE_Y_IDX
+	inc PIPE_Y_IDX
+	sec
 	bcs :loop
 
 :done	rts
+
 
 DrawPipeEvenL	
 	jsr SetPipeCapPtrs
@@ -617,5 +646,3 @@ DrawPipeEvenBL
 	bcs :loop
 
 :done	rts
-
-

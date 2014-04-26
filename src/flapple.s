@@ -348,3 +348,4 @@ VBlankNormal
 	use applerom
 	use dlrlib
 	use pipes
+	use bird
