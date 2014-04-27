@@ -13,8 +13,6 @@
 MLI	equ $bf00
 
 
-
-
 Main	
 	jsr DetectIIgs
 	jsr InitState	;@todo: IIc vblank code
@@ -26,33 +24,7 @@ Main
 	lda #$77
 	jsr DL_Clear
 
-	sec
-	bcs NoTest
-
-PipeTester	ldx #PIPE_BOT
-	lda #20+16
-	ldy #15
-	jsr DrawPipe
-
-	jsr WaitKey
-	ldx #PIPE_BOT
-              lda #45+16
-              ldy #15
-              jsr DrawPipe
-	jsr WaitKey
-
-	ldx #PIPE_TOP
-	lda #20+16
-	ldy #8
-	jsr DrawPipe
-
-	jsr WaitKey
-	ldx #PIPE_TOP
-              lda #45+16
-              ldy #1
-              jsr DrawPipe
-	jsr WaitKey
-NoTest
+*	jsr PipeTester
 
 
 GameLoop	
@@ -64,10 +36,10 @@ GameLoop
 	; update player / draw (w/collision)
 	; update score
 	jsr UpdatePipes
+	jsr DrawScore
 	jsr UpdateGrass
 	jsr VBlank
 *jsr WaitKey
-
 
 
 :kloop	lda KEY
@@ -75,7 +47,6 @@ GameLoop
 :key	sta STROBE
 	bmi Quit
 :noKey	bpl GameLoop
-
 
 
 
@@ -109,7 +80,9 @@ BotPipes	hex 00,00,00,00
 	lst off
 BotPipeMin	equ 3
 BotPipeMax    equ 8
-	
+PipeXScore    equ 50
+ScoreLo	db 0
+ScoreHi	db 0
 
 * pipe min  =  15x6 pixels  =  15x3 bytes
 * playfield =  80x48 pixels =  80x24 bytes
@@ -130,36 +103,82 @@ UpdatePipes	inc PipeSpawn
 	rts
 
 MoveDrawPipes	
+	jsr DrawPipes
+	jsr MovePipes
+	rts
+
+MovePipes
+	ldx #0
+:loop	lda BotPipes,x
+	beq :noPipe
+	dec BotPipes,x
+	dec TopPipes,x
+	lda TopPipes,x
+	cmp #PipeXScore
+	bne :noScore
+	jsr ScoreUp
+:noScore
+:noPipe	inx
+	inx
+	cpx #4
+	bcc :loop
+	rts
+
+
+DrawPipes	
 	lda BotPipes
 	beq :noP1
-	dec BotPipes
-	ldy BotPipes+1
 	ldx #PIPE_BOT
+	ldy BotPipes+1
+	jsr DrawPipe
+	ldx #PIPE_TOP
+	lda TopPipes
+	ldy TopPipes+1
 	jsr DrawPipe
 :noP1
 	lda BotPipes+2
 	beq :noP2
-	dec BotPipes+2
-	ldy BotPipes+3
 	ldx #PIPE_BOT
+	ldy BotPipes+3
 	jsr DrawPipe
-:noP2
-	lda TopPipes
-	beq :noP3
-	dec TopPipes
-	ldy TopPipes+1
 	ldx #PIPE_TOP
-	jsr DrawPipe
-:noP3
 	lda TopPipes+2
-	beq :noP4
-	dec TopPipes+2
 	ldy TopPipes+3
-	ldx #PIPE_TOP
 	jsr DrawPipe
-:noP4
+:noP2	
 	rts
 
+** Draw the Score - @todo - handle > 99
+DrawScore	lda ScoreLo
+	and #$0F
+	ldy #21
+	jsr DrawNum
+	lda ScoreLo
+	lsr
+	lsr
+	lsr
+	lsr
+	tax
+	ldy #19
+	jsr DrawNum
+	lda #$FF
+	sta TXTPAGE1
+	ldx #18
+	sta Lo01,x
+	sta Lo02,x
+	rts
+
+ScoreUp	sed
+	lda ScoreLo
+	clc
+	adc #1
+	sta ScoreLo
+	bcc :noFlip
+	lda ScoreHi
+	adc #0
+	sta ScoreHi
+:noFlip	cld
+	rts
 
 SpawnPipe	lda PipeSpawnSema
 	asl	; convert to word index
@@ -344,8 +363,42 @@ VBlankNormal
 	bmi :loop ;wait for beginning of VBL interval
 	rts
 
+
+
+**** 
+*  TEST CODE  @Todo: remove
+***
+PipeTester	ldx #PIPE_BOT
+	lda #20+16
+	ldy #15
+	jsr DrawPipe
+
+	jsr WaitKey
+	ldx #PIPE_BOT
+              lda #45+16
+              ldy #15
+              jsr DrawPipe
+	jsr WaitKey
+
+	ldx #PIPE_TOP
+	lda #20+16
+	ldy #8
+	jsr DrawPipe
+
+	jsr WaitKey
+	ldx #PIPE_TOP
+              lda #45+16
+              ldy #1
+              jsr DrawPipe
+	jsr WaitKey
+
+
+
+
+
 	use util
 	use applerom
 	use dlrlib
 	use pipes
 	use bird
+	use numbers
