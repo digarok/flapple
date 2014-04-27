@@ -65,7 +65,35 @@ SKIP
 ** Doesn't handle odd horizontal displacement, but vertical works.
 DrawSpriteC  rts
 
-	
+* for y
+*	SETLINEPTRS()
+*       for x
+*	load imask,x
+*	beq :DRAWMASKEDPIXEL
+* 
+* FANCYCOLLISION	; "pixel" level
+*	load SCREEN,x
+*	and IMASK,x
+*	cmp BGNIB1 
+*	beq :NOCOLLISION
+*	cmp BGNIB2
+*	beq :NOCOLLISION
+*	lda 1
+*	sta COLLISION
+*	bra :DRAWMASKEDPIXEL
+* SIMPLECOLLISION
+*	load SCREEN,x
+*	cmp  #BGCOLOR
+*	beq :NOCOLLISION
+*	lda 1
+*	sta COLLISION
+*:NOCOLLISION
+*:DRAWMASKEDPIXEL
+*	load SCREEN,(IDX)X
+*	and  MASK,x		; can I reuse (IDX)X?
+*	or   MAIN/AUX,x
+*	sta SCREEN,(IDX)X
+
 
 GameLoop	
 	; handle input
