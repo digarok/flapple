@@ -12,20 +12,60 @@
 	xc  off
 MLI	equ $bf00
 
+; Sorry, I gotta have some macros.. this is merlin format after all
+; You might as well take advantage of your tools :P
+CopyPtr       MAC
+	lda #<]1      ; load low byte
+	sta ]2	; store low byte
+	lda #>]1	; load high byte
+	sta ]2+1      ; store high byte
+	<<<
+
 
 Main	
 	jsr DetectIIgs
 	jsr InitState	;@todo: IIc vblank code
-
 	
 	jsr VBlank
 	jsr DL_SetDLRMode
-	
 	lda #$77
 	jsr DL_Clear
 
-*	jsr PipeTester
+	sec
+	bcs SKIP
+	lst on
+SPRITE_X	db 0
+SPRITE_Y	db 0
+SPRITE_W	db 0
+SPRITE_H	db 0	; <- in bytes
 
+SPRITE_MAIN	da 0
+SPRITE_AUX	da 0
+SPRITE_MASK   da 0
+SPRITE_IMASK  da 0
+SPRITE_COLLISION db 0
+	lst off
+SKIP
+	lda BIRD_X
+	sta SPRITE_X
+	lda BIRD_Y
+	sta SPRITE_Y
+	lda #10
+	sta SPRITE_W
+	lda #3
+	sta SPRITE_H
+	CopyPtr BIRD_WDN_MAIN;SPRITE_MAIN
+	CopyPtr BIRD_WDN_AUX;SPRITE_AUX
+	CopyPtr BIRD_WDN_MASK;SPRITE_MASK
+	CopyPtr BIRD_WDN_IMASK;SPRITE_IMASK
+	jsr DrawSpriteC
+	sec
+	bcs GameLoop
+	
+** Doesn't handle odd horizontal displacement, but vertical works.
+DrawSpriteC  rts
+
+	
 
 GameLoop	
 	; handle input
@@ -66,88 +106,9 @@ QuitParm	dfb 4	; number of parameters
 Error	brk $00	; shouldn't be here either
 
 
-**************************************************
-* Pipes 
-*
-**************************************************
-PipeInterval	equ #60	; game ticks to spawn new pipe
-PipeSpawn	db 0	; our counter
-PipeSpawnSema db 0	; points to next spot (even if currently unavailable)
-MaxPipes	equ 2
-TopPipes	hex 00,00,00,00
-	lst on
-BotPipes	hex 00,00,00,00
-	lst off
-BotPipeMin	equ 3
-BotPipeMax    equ 8
-PipeXScore    equ 50
-ScoreLo	db 0
-ScoreHi	db 0
-
-* pipe min  =  15x6 pixels  =  15x3 bytes
-* playfield =  80x48 pixels =  80x24 bytes
-*   - grass =	 80x44 pixels =  80x22 bytes
-* we'll make the pipes sit on a 95x22 space
-* we don't care about screen pixel X/Y though we could translate
-* the drawing routine will handle it, and we will do collision
-* in the bird drawing routine
-UpdatePipes	inc PipeSpawn
-	lda PipeSpawn
-	cmp #PipeInterval
-	bne :noSpawn
-	jsr SpawnPipe
-	lda #0
-	sta PipeSpawn
-:noSpawn	jsr MoveDrawPipes
-
-	rts
-
-MoveDrawPipes	
-	jsr DrawPipes
-	jsr MovePipes
-	rts
-
-MovePipes
-	ldx #0
-:loop	lda BotPipes,x
-	beq :noPipe
-	dec BotPipes,x
-	dec TopPipes,x
-	lda TopPipes,x
-	cmp #PipeXScore
-	bne :noScore
-	jsr ScoreUp
-:noScore
-:noPipe	inx
-	inx
-	cpx #4
-	bcc :loop
-	rts
-
-
-DrawPipes	
-	lda BotPipes
-	beq :noP1
-	ldx #PIPE_BOT
-	ldy BotPipes+1
-	jsr DrawPipe
-	ldx #PIPE_TOP
-	lda TopPipes
-	ldy TopPipes+1
-	jsr DrawPipe
-:noP1
-	lda BotPipes+2
-	beq :noP2
-	ldx #PIPE_BOT
-	ldy BotPipes+3
-	jsr DrawPipe
-	ldx #PIPE_TOP
-	lda TopPipes+2
-	ldy TopPipes+3
-	jsr DrawPipe
-:noP2	
-	rts
-
+******************************
+* Score Routines
+*********************
 ** Draw the Score - @todo - handle > 99
 DrawScore	lda ScoreLo
 	and #$0F
@@ -180,26 +141,10 @@ ScoreUp	sed
 :noFlip	cld
 	rts
 
-SpawnPipe	lda PipeSpawnSema
-	asl	; convert to word index
-	tax
-	jsr GetRand	; Build Y Value
-	and #$0F	; @todo - this doesn't check bounds.. just for testing
-	lsr	; even smaller
-	sta TopPipes+1,x
-	clc
-	adc #10
-	sta BotPipes+1,x
-	lda #95	; Build X Value ;)
-	sta TopPipes,x  
-	sta BotPipes,x
-	inc PipeSpawnSema
-	lda PipeSpawnSema
-	cmp #MaxPipes
-	bne :done
-	lda #0	; flip our semaphore/counter to 0
-	sta PipeSpawnSema
-:done	rts
+PipeXScore    equ 50
+ScoreLo	db 0
+ScoreHi	db 0
+
 
 **************************************************
 * Grass 
@@ -362,35 +307,6 @@ VBlankNormal
 :loop	lda $c019
 	bmi :loop ;wait for beginning of VBL interval
 	rts
-
-
-
-**** 
-*  TEST CODE  @Todo: remove
-***
-PipeTester	ldx #PIPE_BOT
-	lda #20+16
-	ldy #15
-	jsr DrawPipe
-
-	jsr WaitKey
-	ldx #PIPE_BOT
-              lda #45+16
-              ldy #15
-              jsr DrawPipe
-	jsr WaitKey
-
-	ldx #PIPE_TOP
-	lda #20+16
-	ldy #8
-	jsr DrawPipe
-
-	jsr WaitKey
-	ldx #PIPE_TOP
-              lda #45+16
-              ldy #1
-              jsr DrawPipe
-	jsr WaitKey
 
 
 

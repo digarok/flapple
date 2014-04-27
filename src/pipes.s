@@ -31,9 +31,18 @@ PipeSpr_Aux
 	hex aa,a7,a7,a6,a7,a6,a6,a6,a6,a2,a6,a2,a2,aa,bb
 	hex bb,aa,77,77,66,77,66,66,22,66,22,22,aa,bb,bb
 
-SRCPTR	equz  $00
-DSTPTR	equz  $02
-DSTPTR2	equz  $04
+PipeInterval	equ #60	; game ticks to spawn new pipe
+PipeSpawn	db 0	; our counter
+PipeSpawnSema db 0	; points to next spot (even if currently unavailable)
+MaxPipes	equ 2
+TopPipes	hex 00,00,00,00
+BotPipes	hex 00,00,00,00
+BotPipeMin	equ 3
+BotPipeMax    equ 8
+
+PIPE_SP	equz  $00
+PIPE_DP	equz  $02
+PIPE_DP2	equz  $04
 PIPE_RCLIP	equ #40
 PIPE_WIDTH	equ #15
 PIPE_UNDERVAL	db 0
@@ -50,17 +59,102 @@ PIPE_EVEN_ODD db 0	; 0=even, Y=odd
 PIPE_TOP	equ 0	; enum for top pipe type
 PIPE_BOT	equ 1	; enum for bottom pipe type
 
+* pipe min  =  15x6 pixels  =  15x3 bytes
+* playfield =  80x48 pixels =  80x24 bytes
+*   - grass =	 80x44 pixels =  80x22 bytes
+* we'll make the pipes sit on a 95x22 space
+* we don't care about screen pixel X/Y though we could translate
+* the drawing routine will handle it, and we will do collision
+* in the bird drawing routine
+UpdatePipes	inc PipeSpawn
+	lda PipeSpawn
+	cmp #PipeInterval
+	bne :noSpawn
+	jsr SpawnPipe
+	lda #0
+	sta PipeSpawn
+:noSpawn	jsr MoveDrawPipes
+	rts
+
+SpawnPipe	lda PipeSpawnSema
+	asl	; convert to word index
+	tax
+	jsr GetRand	; Build Y Value
+	and #$0F	; @todo - this doesn't check bounds.. just for testing
+	lsr	; even smaller
+	sta TopPipes+1,x
+	clc
+	adc #10
+	sta BotPipes+1,x
+	lda #95	; Build X Value ;)
+	sta TopPipes,x  
+	sta BotPipes,x
+	inc PipeSpawnSema
+	lda PipeSpawnSema
+	cmp #MaxPipes
+	bne :done
+	lda #0	; flip our semaphore/counter to 0
+	sta PipeSpawnSema
+:done	rts
+
+MoveDrawPipes	
+	jsr DrawPipes
+	jsr MovePipes
+	rts
+
+MovePipes
+	ldx #0
+:loop	lda BotPipes,x
+	beq :noPipe
+	dec BotPipes,x
+	dec TopPipes,x
+	lda TopPipes,x
+	cmp #PipeXScore
+	bne :noScore
+	jsr ScoreUp
+:noScore
+:noPipe	inx
+	inx
+	cpx #4
+	bcc :loop
+	rts
+
+
+DrawPipes	
+	lda BotPipes
+	beq :noP1
+	ldx #PIPE_BOT
+	ldy BotPipes+1
+	jsr DrawPipe
+	ldx #PIPE_TOP
+	lda TopPipes
+	ldy TopPipes+1
+	jsr DrawPipe
+:noP1
+	lda BotPipes+2
+	beq :noP2
+	ldx #PIPE_BOT
+	ldy BotPipes+3
+	jsr DrawPipe
+	ldx #PIPE_TOP
+	lda TopPipes+2
+	ldy TopPipes+3
+	jsr DrawPipe
+:noP2	
+	rts
+
+
 * Used by all of the routines that draw the pipe caps
 SetPipeCapPtrs
 	ldy PIPE_Y_IDX
 	lda LoLineTable,y
-	sta DSTPTR
+	sta PIPE_DP
 	lda LoLineTable+1,y
-	sta DSTPTR+1	; pointer to line on screen
+	sta PIPE_DP+1	; pointer to line on screen
 	lda LoLineTable+2,y
-	sta DSTPTR2
+	sta PIPE_DP2
 	lda LoLineTable+3,y
-	sta DSTPTR2+1	; pointer to line on screen
+	sta PIPE_DP2+1	; pointer to line on screen
 	rts
 
 
@@ -132,9 +226,9 @@ DrawPipeOdd	jsr SetPipeCapPtrs
 	ldy PIPE_X_IDX	; y= the x offset... yay dp indexing on 6502
 	ldx #0
 :l1_loop	lda PipeSpr_Main,x
-	sta (DSTPTR),y
+	sta (PIPE_DP),y
 	lda PipeSpr_Main+PIPE_WIDTH,x
-	sta (DSTPTR2),y
+	sta (PIPE_DP2),y
 	iny	; can check this for clipping?
 	inx
 	inx	;\_ skip a col
@@ -146,9 +240,9 @@ DrawPipeOdd	jsr SetPipeCapPtrs
 	iny	;-- pixel after - fun mapping
 	ldx #1
 :l2_loop	lda PipeSpr_Aux,x
-	sta (DSTPTR),y
+	sta (PIPE_DP),y
 	lda PipeSpr_Aux+PIPE_WIDTH,x
-	sta (DSTPTR2),y
+	sta (PIPE_DP2),y
 	iny	; can check this for clipping?
 	inx
 	inx	;\_ skip a col
@@ -199,9 +293,9 @@ DrawPipeBodyOdd
 	ldy PIPE_Y_IDX	; revert to table-lookup form
 
 	lda LoLineTable,y
-	sta DSTPTR
+	sta PIPE_DP
 	lda LoLineTable+1,y
-	sta DSTPTR+1	; pointer to line on screen
+	sta PIPE_DP+1	; pointer to line on screen
 	
 	sta TXTPAGE1
 	ldy PIPE_X_IDX
@@ -209,7 +303,7 @@ DrawPipeBodyOdd
 :l1_loop	cpy #PIPE_RCLIP
 	beq :l1_clip_break	
 	lda 2*PIPE_WIDTH+PipeSpr_Main,x ; line 2
-	sta (DSTPTR),y
+	sta (PIPE_DP),y
 	iny
 	inx
 	inx
@@ -224,7 +318,7 @@ DrawPipeBodyOdd
 :l2_loop	cpy #PIPE_RCLIP
 	beq :l2_clip_break	
 	lda 2*PIPE_WIDTH+PipeSpr_Aux,x ; line 2
-	sta (DSTPTR),y
+	sta (PIPE_DP),y
 	iny
 	inx
 	inx
@@ -276,9 +370,9 @@ DrawPipeBodyEven
 	ldy PIPE_Y_IDX	; revert to table-lookup form
 
 	lda LoLineTable,y
-	sta DSTPTR
+	sta PIPE_DP
 	lda LoLineTable+1,y
-	sta DSTPTR+1	; pointer to line on screen
+	sta PIPE_DP+1	; pointer to line on screen
 	
 	sta TXTPAGE1
 	ldy PIPE_X_IDX
@@ -286,7 +380,7 @@ DrawPipeBodyEven
 :l1_loop	cpy #PIPE_RCLIP
 	beq :l1_clip_break	
 	lda 2*PIPE_WIDTH+PipeSpr_Main,x ; line 2
-	sta (DSTPTR),y
+	sta (PIPE_DP),y
 	iny
 	inx
 	inx
@@ -300,7 +394,7 @@ DrawPipeBodyEven
 :l2_loop	cpy #PIPE_RCLIP
 	beq :l2_clip_break	
 	lda 2*PIPE_WIDTH+PipeSpr_Aux,x ; line 2
-	sta (DSTPTR),y
+	sta (PIPE_DP),y
 	iny
 	inx
 	inx
@@ -320,9 +414,9 @@ DrawPipeEven	jsr SetPipeCapPtrs
 	ldy PIPE_X_IDX	; y= the x offset... yay dp indexing on 6502
 	ldx #0
 :l1_loop	lda PipeSpr_Aux,x
-	sta (DSTPTR),y
+	sta (PIPE_DP),y
 	lda PipeSpr_Aux+PIPE_WIDTH,x
-	sta (DSTPTR2),y
+	sta (PIPE_DP2),y
 	iny	; can check this for clipping?
 	inx
 	inx	;\_ skip a col
@@ -333,9 +427,9 @@ DrawPipeEven	jsr SetPipeCapPtrs
 	ldy PIPE_X_IDX
 	ldx #1
 :l2_loop	lda PipeSpr_Main,x
-	sta (DSTPTR),y
+	sta (PIPE_DP),y
 	lda PipeSpr_Main+PIPE_WIDTH,x
-	sta (DSTPTR2),y
+	sta (PIPE_DP2),y
 	iny	; can check this for clipping?
 	inx
 	inx	;\_ skip a col
@@ -360,9 +454,9 @@ DrawPipeOddR
 	cpy #PIPE_RCLIP ;this works for underflow too (?) i think	
 	bcs :l1_break
 	lda PipeSpr_Main,x
-	sta (DSTPTR),y
+	sta (PIPE_DP),y
 	lda PipeSpr_Main+PIPE_WIDTH,x
-	sta (DSTPTR2),y
+	sta (PIPE_DP2),y
 	
 	iny	; can check this for clipping?
 	inx
@@ -380,9 +474,9 @@ DrawPipeOddR
 	bcs :l2_break
 
 	lda PipeSpr_Aux,x
-	sta (DSTPTR),y
+	sta (PIPE_DP),y
 	lda PipeSpr_Aux+PIPE_WIDTH,x
-	sta (DSTPTR2),y
+	sta (PIPE_DP2),y
 
 	iny	; can check this for clipping?
 	inx
@@ -405,9 +499,9 @@ DrawPipeEvenR
 	ldy PIPE_X_IDX	; y= the x offset... yay dp indexing on 6502
 	ldx #0
 :l1_loop	lda PipeSpr_Aux,x
-	sta (DSTPTR),y
+	sta (PIPE_DP),y
 	lda PipeSpr_Aux+PIPE_WIDTH,x
-	sta (DSTPTR2),y
+	sta (PIPE_DP2),y
 	iny	; can check this for clipping?
 	cpy #PIPE_RCLIP
 	bcs :l1_break
@@ -423,9 +517,9 @@ DrawPipeEvenR
 	cpy #PIPE_RCLIP
 	bcs :l2_break
 	lda PipeSpr_Main,x
-	sta (DSTPTR),y
+	sta (PIPE_DP),y
 	lda PipeSpr_Main+PIPE_WIDTH,x
-	sta (DSTPTR2),y
+	sta (PIPE_DP2),y
 	iny	; can check this for clipping?
 	inx
 	inx	;\_ skip a col
@@ -449,9 +543,9 @@ DrawPipeOddL
 :l1_loop	cpy #PIPE_RCLIP
 	bcs :l1_skip
 	lda PipeSpr_Main,x
-	sta (DSTPTR),y
+	sta (PIPE_DP),y
 	lda PipeSpr_Main+PIPE_WIDTH,x
-	sta (DSTPTR2),y
+	sta (PIPE_DP2),y
 :l1_skip	iny	; can check this for clipping?
 	inx
 	inx	;\_ skip a col
@@ -466,9 +560,9 @@ DrawPipeOddL
 :l2_loop	cpy #PIPE_RCLIP
 	bcs :l2_skip
 	lda PipeSpr_Aux,x
-	sta (DSTPTR),y
+	sta (PIPE_DP),y
 	lda PipeSpr_Aux+PIPE_WIDTH,x
-	sta (DSTPTR2),y
+	sta (PIPE_DP2),y
 :l2_skip	iny	; can check this for clipping?
 	inx
 	inx	;\_ skip a col
@@ -519,9 +613,9 @@ DrawPipeBodyOddL
 	ldy PIPE_Y_IDX
 
 	lda LoLineTable,y
-	sta DSTPTR
+	sta PIPE_DP
 	lda LoLineTable+1,y
-	sta DSTPTR+1	; pointer to line on screen
+	sta PIPE_DP+1	; pointer to line on screen
 	
 	sta TXTPAGE1
 	ldy PIPE_X_IDX
@@ -529,7 +623,7 @@ DrawPipeBodyOddL
 :l1_loop	cpy #PIPE_RCLIP
 	bcs :l1_clip_skip
 	lda 2*PIPE_WIDTH+PipeSpr_Main,x ; line 2
-	sta (DSTPTR),y
+	sta (PIPE_DP),y
 :l1_clip_skip	iny
 	inx
 	inx
@@ -544,7 +638,7 @@ DrawPipeBodyOddL
 :l2_loop	cpy #PIPE_RCLIP
 	bcs :l2_clip_skip
 	lda 2*PIPE_WIDTH+PipeSpr_Aux,x ; line 2
-	sta (DSTPTR),y
+	sta (PIPE_DP),y
 :l2_clip_skip	iny
 	inx
 	inx
@@ -567,9 +661,9 @@ DrawPipeEvenL
 :l1_loop	cpy #PIPE_RCLIP
 	bcs :l1_skip
 	lda PipeSpr_Aux,x
-	sta (DSTPTR),y
+	sta (PIPE_DP),y
 	lda PipeSpr_Aux+PIPE_WIDTH,x
-	sta (DSTPTR2),y
+	sta (PIPE_DP2),y
 :l1_skip	iny	; can check this for clipping?
 	inx
 	inx	;\_ skip a col
@@ -582,9 +676,9 @@ DrawPipeEvenL
 :l2_loop	cpy #PIPE_RCLIP
 	bcs :l2_skip
 	lda PipeSpr_Main,x
-	sta (DSTPTR),y
+	sta (PIPE_DP),y
 	lda PipeSpr_Main+PIPE_WIDTH,x
-	sta (DSTPTR2),y
+	sta (PIPE_DP2),y
 :l2_skip	iny	; can check this for clipping?
 	inx
 	inx	;\_ skip a col
@@ -612,9 +706,9 @@ DrawPipeEvenBL
 	cpy #44	; make sure we haven't hit bottom... pun intended
 	beq :done
 	lda LoLineTable,y
-	sta DSTPTR
+	sta PIPE_DP
 	lda LoLineTable+1,y
-	sta DSTPTR+1	; pointer to line on screen
+	sta PIPE_DP+1	; pointer to line on screen
 	
 	sta TXTPAGE1
 	ldy PIPE_X_IDX
@@ -622,7 +716,7 @@ DrawPipeEvenBL
 :l1_loop	cpy #PIPE_RCLIP
 	bcs :l1_clip_skip
 	lda 2*PIPE_WIDTH+PipeSpr_Main,x ; line 2
-	sta (DSTPTR),y
+	sta (PIPE_DP),y
 :l1_clip_skip	iny
 	inx
 	inx
@@ -636,7 +730,7 @@ DrawPipeEvenBL
 :l2_loop	cpy #PIPE_RCLIP
 	bcs :l2_clip_skip
 	lda 2*PIPE_WIDTH+PipeSpr_Aux,x ; line 2
-	sta (DSTPTR),y
+	sta (PIPE_DP),y
 :l2_clip_skip	iny
 	inx
 	inx
