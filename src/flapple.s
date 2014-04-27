@@ -44,6 +44,19 @@ SPRITE_AUX	da 0
 SPRITE_MASK   da 0
 SPRITE_IMASK  da 0
 SPRITE_COLLISION db 0
+SPRITE_Y_IDX	dw 0
+SPRITE_X_IDX  dw 0
+
+SPRITE_SCREEN_P equz $00
+SPRITE_MAIN_P equz $02
+SPRITE_AUX_P	equz $04
+SPRITE_MASK_P equz $FA
+SPRITE_IMASK_P equz $FC
+
+SPRITE_SCREEN_IDX db 0
+AUX_BG_COLOR	db #$BB
+MAIN_BG_COLOR	db #$77
+
 	lst off
 SKIP
 	lda BIRD_X
@@ -54,22 +67,103 @@ SKIP
 	sta SPRITE_W
 	lda #3
 	sta SPRITE_H
-	CopyPtr BIRD_WDN_MAIN;SPRITE_MAIN
-	CopyPtr BIRD_WDN_AUX;SPRITE_AUX
-	CopyPtr BIRD_WDN_MASK;SPRITE_MASK
-	CopyPtr BIRD_WDN_IMASK;SPRITE_IMASK
+	CopyPtr BIRD_WDN_MAIN;SPRITE_MAIN_P
+	CopyPtr BIRD_WDN_AUX;SPRITE_AUX_P
+	CopyPtr BIRD_WDN_MASK;SPRITE_MASK_P
+	CopyPtr BIRD_WDN_IMASK;SPRITE_IMASK_P
 	jsr DrawSpriteC
 	sec
 	bcs GameLoop
 	
 ** Doesn't handle odd horizontal displacement, but vertical works.
-DrawSpriteC  rts
+DrawSpriteC   
+	lda SPRITE_W
+	lsr
+	sta SPRITE_W	; /2
+:yLoop	lda SPRITE_Y  ; 
+	lsr
+	asl
+	lda LoLineTable,y
+	sta SPRITE_SCREEN_P+1
+	lda LoLineTable+1,y
+	sta SPRITE_SCREEN_P
+	lda SPRITE_X
+	lsr
+	clc 
+	adc SPRITE_SCREEN_P
+	sta SPRITE_SCREEN_P
+	bcc :noCarry
+	inc SPRITE_SCREEN_P+1
+
+
+* FANCYCOLLISION	; "pixel" level
+*	load SCREEN,x
+*	and IMASK,x
+*	cmp BGNIB1 
+*	beq :NOCOLLISION
+*	cmp BGNIB2
+*	beq :NOCOLLISION
+*	lda 1
+*	sta COLLISION
+*	bra :DRAWMASKEDPIXEL
+
+
+:noCarry	sta TXTPAGE2	; start with even pixels on aux
+	lda #0
+	sta SPRITE_SCREEN_IDX
+	tax	;\_ x/y = 0 
+	tay	;/
+:lineLoop	
+	lda (SPRITE_IMASK_P),y
+	beq :noPixel
+	cmp #$FF
+	beq :simpleCollision
+	lda (SPRITE_SCREEN_P),y
+	pha
+	txa
+	tay
+	pla
+	pha	; store one more time
+	and (SPRITE_IMASK_P),y	
+	cmp #$B0
+	beq :noFancyCollision
+	cmp #$0B
+	beq :noFancyCollision
+	lda #1
+	sta SPRITE_COLLISION
+:noFancyCollision
+	pla
+	and (SPRITE_MASK_P),y	;woops.. cut out sprite shape
+	ora (SPRITE_AUX_P),y
+	ldy SPRITE_SCREEN_IDX
+	sta (SPRITE_SCREEN_P),y
+:simpleCollision
+	lda (SPRITE_SCREEN_P),y
+	cmp #$BB	; AUX BCG
+	bne :noSimpleCollision
+	lda #1
+	sta SPRITE_COLLISION
+:noSimpleCollision
+	txa
+	tay
+	lda (SPRITE_AUX_P),y
+	ldy SPRITE_SCREEN_IDX
+	sta (SPRITE_SCREEN_P),y
+:noPixel
+	inx
+	inx
+	inc SPRITE_SCREEN_IDX
+	ldy SPRITE_SCREEN_IDX
+	cpy SPRITE_W
+	bcc :lineLoop
+
+	rts
 
 * for y
 *	SETLINEPTRS()
 *       for x
 *	load imask,x
-*	beq :DRAWMASKEDPIXEL
+*	beq :NOPIXEL
 * 
 * FANCYCOLLISION	; "pixel" level
 *	load SCREEN,x
@@ -93,7 +187,7 @@ DrawSpriteC  rts
 *	and  MASK,x		; can I reuse (IDX)X?
 *	or   MAIN/AUX,x
 *	sta SCREEN,(IDX)X
-
+*:NOPIXEL    advance ptrs
 
 GameLoop	
 	; handle input

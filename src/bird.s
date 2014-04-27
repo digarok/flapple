@@ -1,8 +1,6 @@
 BIRD_X	db #$38	; (0-79)
 BIRD_Y	db #$22	; (0-47)
 
-
-
 *** "Even" / base sprites
 BIRD_WDN_MAIN
  hex 00,50,D5,D5,D5,A5,FF,0F,F0,00
