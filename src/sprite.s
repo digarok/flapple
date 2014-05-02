@@ -22,7 +22,6 @@ SPRITE_SCREEN_IDX db #$0
 AUX_BG_COLOR	db #$BB
 MAIN_BG_COLOR	db #$77
 
-DELLINE2	db 0
 *** MAKE IT WORK
 
 BirdTest
@@ -68,10 +67,6 @@ DrawSpriteBetter
 
 
 DrawSpriteLineC
-	lda DELLINE2
-	beq :noTrip
-	;brk $f0
-:noTrip
 	; EVEN COLS
 DD_EVEN	lda #0
 	sta SPRITE_SCREEN_IDX
@@ -94,7 +89,7 @@ DD_EVEN	lda #0
 	beq :noCollision
 	lda #1
 	sta SPRITE_COLLISION
-	;bne :doPixels		; BRA
+	sta $c034
 
 :noCollision	
 :doPixels	pla		; Y=SPRITE X   A=BG DATA
@@ -139,7 +134,7 @@ DD_ODD
 	beq :noCollision
 	lda #1
 	sta SPRITE_COLLISION
-	;bne :doPixels		; BRA
+	sta $c034
 
 :noCollision	
 :doPixels	pla		; Y=SPRITE X   A=BG DATA
@@ -155,149 +150,6 @@ DD_ODD
 	cpy SPRITE_W
 	bcc :lineLoop
 	dec SPRITE_X_IDX	; -1 column offset (for next row)
-	lda #1
-	sta DELLINE1
 	rts
 
-
-
-
-** Doesn't handle odd horizontal displacement, but vertical works.
-DrawSpriteC  
-	lda SPRITE_W
-	lsr
-	sta SPRITE_W_D2 ; /2 max loop index?  width/2
-:yLoop	lda SPRITE_Y  ; 
-	asl
-	tay
-	lda LoLineTable,y
-	sta SPRITE_SCREEN_P
-	lda LoLineTable+1,y
-	sta SPRITE_SCREEN_P+1
-	lda SPRITE_X
-	lsr	; /2
-	clc 
-	adc SPRITE_SCREEN_P
-	sta SPRITE_SCREEN_P
-	bcc :noCarry
-	inc SPRITE_SCREEN_P+1
-
-:noCarry	
-AUXDRAW	sta TXTPAGE2	; start with even pixels on aux
-:passLoop	lda #0
-	sta SPRITE_SCREEN_IDX
-	tax	;\_ x/y = 0 
-	tay	;/
-:lineLoop	
-	lda (SPRITE_IMASK_P),y
-	beq :noPixel
-	cmp #$FF
-	beq :simpleCollision
-:fancyCollision
-	lda (SPRITE_SCREEN_P),y
-	cmp #$BB	; AUX BCG
-	beq :noSimpleCollision
-
-	lda (SPRITE_SCREEN_P),y
-	pha
-	txa
-	tay
-	pla
-	pha	; store one more time
-	and (SPRITE_IMASK_P),y	
-	cmp #$B0
-	beq :noFancyCollision
-	cmp #$0B
-	beq :noFancyCollision
-	lda #1
-	sta SPRITE_COLLISION
-:noFancyCollision
-	pla
-	and (SPRITE_MASK_P),y	;woops.. cut out sprite shape
-	ora (SPRITE_AUX_P),y
-	ldy SPRITE_SCREEN_IDX
-	sta (SPRITE_SCREEN_P),y
-	sec
-	bcs :nextPixel
-:simpleCollision
-	lda (SPRITE_SCREEN_P),y
-	cmp #$BB	; AUX BCG
-	beq :noSimpleCollision
-	lda #1
-	sta SPRITE_COLLISION
-:noSimpleCollision
-	txa
-	tay
-	lda (SPRITE_AUX_P),y
-	ldy SPRITE_SCREEN_IDX
-	sta (SPRITE_SCREEN_P),y
-:noPixel
-:nextPixel
-	inx
-	inx
-	inc SPRITE_SCREEN_IDX
-	ldy SPRITE_SCREEN_IDX
-	cpy SPRITE_W_D2
-	bcc :lineLoop
-
-MAINDRAW	sta TXTPAGE1	; start with even pixels on aux
-:passLoop	lda #1
-	sta SPRITE_SCREEN_IDX
-	tax	;\_ x/y = 0 
-	ldy #1	; WE'RE OFFSET BY 1 NOW
-	dec SPRITE_SCREEN_P ; adjust pointer for mistake
-	;tay	;/
-:lineLoop	
-	lda (SPRITE_IMASK_P),y
-	beq :noPixel
-	cmp #$FF
-	beq :simpleCollision
-:fancyCollision
-	lda (SPRITE_SCREEN_P),y
-	cmp #$77	; MAIN BCG
-	beq :noSimpleCollision
-	pha
-	txa
-	tay
-	pla
-	pha	; store one more time
-	and (SPRITE_IMASK_P),y	
-	cmp #$70
-	beq :noFancyCollision
-	cmp #$07
-	beq :noFancyCollision
-	lda #1
-	sta SPRITE_COLLISION
-:noFancyCollision
-	pla
-	and (SPRITE_MASK_P),y	;woops.. cut out sprite shape
-	ora (SPRITE_MAIN_P),y
-	ldy SPRITE_SCREEN_IDX
-	sta (SPRITE_SCREEN_P),y
-	sec
-	bcs :nextPixel
-:simpleCollision
-	lda (SPRITE_SCREEN_P),y
-	cmp #$77	; AUX BCG
-	beq :noSimpleCollision
-	lda #1
-	sta SPRITE_COLLISION
-:noSimpleCollision
-	txa
-	tay
-	lda (SPRITE_MAIN_P),y
-	ldy SPRITE_SCREEN_IDX
-	sta (SPRITE_SCREEN_P),y
-:noPixel
-:nextPixel
-	inx
-	inx
-	inc SPRITE_SCREEN_IDX
-	ldy SPRITE_SCREEN_IDX
-	cpy SPRITE_W_D2
-	bcc :lineLoop
-
-	lda SPRITE_COLLISION
-	sta $c034
-	rts
 

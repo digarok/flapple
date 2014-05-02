@@ -40,21 +40,13 @@ GameLoop
 	; update pipes / draw
 	; update player / draw (w/collision)
 	; update score
-	lda #1
-	sta STATE
+
+	; UNDRAW BIRD
 	jsr UpdatePipes
-	lda #2
-	sta STATE
 	jsr BirdTest
-	lda #3
-	sta STATE
 	;jsr DrawBird
 	jsr DrawScore
-	lda #4
-	sta STATE
 	jsr UpdateGrass
-	lda #5
-	sta STATE
 	jsr VBlank
 *jsr WaitKey
 
