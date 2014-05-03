@@ -41,26 +41,40 @@ GameLoop
 	; update player / draw (w/collision)
 	; update score
 
-	; UNDRAW BIRD
-	jsr UpdatePipes
-	jsr BirdTest
-	;jsr DrawBird
-	jsr DrawScore
-	jsr UpdateGrass
-	jsr VBlank
-*jsr WaitKey
-
-
+	jsr UndrawBird
 :kloop	lda KEY
 	bpl :noKey
 :key	sta STROBE
-	bmi Quit
-:noKey	bpl GameLoop
+	cmp #"A"
+	beq :up
+	cmp #"B"
+	beq :dn
+	lda #1
+	sta QuitFlag
+:dn	inc BIRD_Y
+	bpl :keyDone
+:up	dec BIRD_Y
+:noKey
+:keyDone
+
+	jsr UpdatePipes
+	;jsr BirdTest
+	jsr DrawBird
+	jsr VBlank	
+	jsr DrawScore
+
+	jsr UpdateGrass
+
+	jsr FlapBird
+	jsr VBlank
+	;jsr WaitKey
+	clc
+	bcc GameLoop
 
 
-	lst on
-STATE	dw 0	; 1=pipes, 2=bird
-	lst off
+
+
+QuitFlag	db 0	; set to 1 to quit
 
 Quit	jsr MLI	; first actual command, call ProDOS vector
 	dfb $65	; with "quit" request ($65)
@@ -290,6 +304,6 @@ VBlankNormal
 	use applerom
 	use dlrlib
 	use pipes
-	use bird
 	use numbers
 	use sprite	; this is getting to be a lot
+	use bird

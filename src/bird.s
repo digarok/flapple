@@ -1,52 +1,29 @@
-
-BIRD_X	db #20	; (0-79)
-BIRD_Y	db #5	; (0-47)
+BIRD_X	db #17	; (0-79)
+BIRD_Y	db #15	; (0-47)
 BIRD_FLAP	db #0	; 0=down 1=up
+BIRD_FLAP_RATE equ #3
+BIRD_FLAP_CNT	db 0
 
-DrawBird
-*	lda #10
-*	sta SPRITE_W	; all birds are same width
-*
-*	lda BIRD_Y
-*	lsr
-*	bcs :oddHeight
-*:evenHeight	asl
-*	sta SPRITE_Y
-*	lda #3
-*	sta SPRITE_H
-*	lda BIRD_FLAP
-*	beq :flapDownEven
-*:flapUpEven	CopyPtr #BIRD_WUP_MAIN;SPRITE_MAIN_P
-*              CopyPtr #BIRD_WUP_AUX;SPRITE_AUX_P
-*	CopyPtr #BIRD_WUP_MASK;SPRITE_MASK_P
-*              CopyPtr #BIRD_WUP_IMASK;SPRITE_IMASK_P
-*	jmp :drawSprite
-*:flapDownEven	CopyPtr #BIRD_WDN_MAIN;SPRITE_MAIN_P
-*              CopyPtr #BIRD_WDN_AUX;SPRITE_AUX_P
-*	CopyPtr #BIRD_WDN_MASK;SPRITE_MASK_P
-*              CopyPtr #BIRD_WDN_IMASK;SPRITE_IMASK_P
-*	jmp :drawSprite
-*:oddHeight	asl
-*	sta SPRITE_Y
-*	lda #4
-*	sta SPRITE_H
-*	lda BIRD_FLAP
-*	beq :flapDownOdd
-*:flapUpOdd	CopyPtr #BIRD_WUP_O_MAIN;SPRITE_MAIN_P
-*              CopyPtr #BIRD_WUP_O_AUX;SPRITE_AUX_P
-*	CopyPtr #BIRD_WUP_O_MASK;SPRITE_MASK_P
-*              CopyPtr #BIRD_WUP_O_IMASK;SPRITE_IMASK_P
-*	jmp :drawSprite
-*:flapDownOdd	CopyPtr #BIRD_WDN_O_MAIN;SPRITE_MAIN_P
-*              CopyPtr #BIRD_WDN_O_AUX;SPRITE_AUX_P
-*	CopyPtr #BIRD_WDN_O_MASK;SPRITE_MASK_P
-*              CopyPtr #BIRD_WDN_O_IMASK;SPRITE_IMASK_P
-*	jmp :drawSprite
-*:drawSprite
-*	jsr DrawSpriteC
-	rts 
+FlapBird	
+	inc BIRD_FLAP_CNT
+	lda BIRD_FLAP_CNT
+	cmp #BIRD_FLAP_RATE
+	bcs :flapIt
+	rts
+:flapIt	
+	lda #0
+	sta BIRD_FLAP_CNT
+	inc BIRD_FLAP
+	lda BIRD_FLAP
+	cmp #2
+	bne :noFlip
+	lda #0
+	sta BIRD_FLAP
+:noFlip
+	rts
 
 *** "Even" / base sprites
+	ds \
 BIRD_WDN_MAIN
  hex 00,50,D5,D5,D5,A5,FF,0F,F0,00
  hex 55,DD,DD,5D,DD,8A,9F,90,9F,90
@@ -76,7 +53,7 @@ BIRD_WUP_MAIN
  hex 55,D5,D5,55,DD,8A,9F,90,9F,90
  hex 0A,05,5B,5D,58,51,01,01,01,00
 
-
+	ds \
 BIRD_WUP_AUX
  hex 00,A0,EA,EA,EA,5A,FF,0F,F0,00
  hex AA,EA,EA,AA,EE,45,CF,C0,CF,C0
@@ -150,3 +127,156 @@ BIRD_WUP_O_IMASK
  hex F0,FF,FF,FF,FF,FF,FF,FF,FF,00
  hex FF,FF,FF,FF,FF,FF,FF,FF,FF,0F
  hex 00,00,0F,0F,0F,0F,00,00,00,00
+
+
+** y=line   a=height  x=col
+UndrawBird	lda BIRD_Y
+	lsr
+	tay
+	bne :oddBird
+:evenBird	lda #3
+	bne :continue
+:oddBird	lda #4
+:continue	ldx BIRD_X
+	cmp #4
+	beq :undraw4
+:undraw3	tya	; we don't need height anymore, trash it	
+	asl
+	tay
+	lda LoLineTable,y
+	sta SPRITE_SCREEN_P
+	lda LoLineTable+1,y
+	sta SPRITE_SCREEN_P+1
+	lda LoLineTable+2,y
+	sta SPRITE_SCREEN_P2
+	lda LoLineTable+3,y
+	sta SPRITE_SCREEN_P2+1
+	lda LoLineTable+4,y
+	sta SPRITE_SCREEN_P3
+	lda LoLineTable+5,y
+	sta SPRITE_SCREEN_P3+1
+
+	txa 
+	pha	; stash
+	tay	; COL offset
+	ldx #5	; TERMINATOR index
+	sta TXTPAGE2
+	lda #$BB
+:wipe1	sta (SPRITE_SCREEN_P),y
+	sta (SPRITE_SCREEN_P2),y
+	sta (SPRITE_SCREEN_P3),y
+	iny
+	dex
+	bne :wipe1
+	pla	; unstash
+	tay
+	ldx #5
+	sta TXTPAGE1
+	lda #$77
+:wipe2	sta (SPRITE_SCREEN_P),y
+	sta (SPRITE_SCREEN_P2),y
+	sta (SPRITE_SCREEN_P3),y
+	iny
+	dex
+	bne :wipe2
+	rts
+
+
+
+:undraw4	tya	; we don't need height anymore, trash it	
+	asl
+	tay
+	lda LoLineTable,y
+	sta SPRITE_SCREEN_P
+	lda LoLineTable+1,y
+	sta SPRITE_SCREEN_P+1
+	lda LoLineTable+2,y
+	sta SPRITE_SCREEN_P2
+	lda LoLineTable+3,y
+	sta SPRITE_SCREEN_P2+1
+	lda LoLineTable+4,y
+	sta SPRITE_SCREEN_P3
+	lda LoLineTable+5,y
+	sta SPRITE_SCREEN_P3+1
+	lda LoLineTable+6,y
+	sta SPRITE_SCREEN_P4
+	lda LoLineTable+7,y
+	sta SPRITE_SCREEN_P4+1
+
+	txa 
+	pha	; stash
+	tay	; COL offset
+	ldx #5	; TERMINATOR index
+	sta TXTPAGE2
+	lda #$BB
+:wipe3	sta (SPRITE_SCREEN_P),y
+	sta (SPRITE_SCREEN_P2),y
+	sta (SPRITE_SCREEN_P3),y
+	sta (SPRITE_SCREEN_P4),y
+	iny
+	dex
+	bne :wipe3
+	pla	; unstash
+	tay
+	ldx #5
+	sta TXTPAGE1
+	lda #$77
+:wipe4	sta (SPRITE_SCREEN_P),y
+	sta (SPRITE_SCREEN_P2),y
+	sta (SPRITE_SCREEN_P3),y
+	sta (SPRITE_SCREEN_P4),y
+	iny
+	dex
+	bne :wipe4
+	rts
+
+DrawBird
+	lda BIRD_X
+	sta SPRITE_X
+	lda #5
+	sta SPRITE_W	; all birds are same width
+
+	lda BIRD_Y
+	lsr
+	bcs :oddHeight
+:evenHeight	
+	sta SPRITE_Y
+	lda #3
+	sta SPRITE_H
+	lda BIRD_FLAP
+	beq :flapDownEven
+:flapUpEven	CopyPtr BIRD_WUP_MAIN;SPRITE_MAIN_P
+              CopyPtr BIRD_WUP_AUX;SPRITE_AUX_P
+	CopyPtr BIRD_WUP_MASK;SPRITE_MASK_P
+              CopyPtr BIRD_WUP_IMASK;SPRITE_IMASK_P
+	jmp :drawSprite
+:flapDownEven	CopyPtr BIRD_WDN_MAIN;SPRITE_MAIN_P
+              CopyPtr BIRD_WDN_AUX;SPRITE_AUX_P
+	CopyPtr BIRD_WDN_MASK;SPRITE_MASK_P
+              CopyPtr BIRD_WDN_IMASK;SPRITE_IMASK_P
+	jmp :drawSprite
+
+:oddHeight	
+	sta SPRITE_Y
+	lda #4
+	sta SPRITE_H
+	lda BIRD_FLAP
+	beq :flapDownOdd
+:flapUpOdd	CopyPtr BIRD_WUP_O_MAIN;SPRITE_MAIN_P
+              CopyPtr BIRD_WUP_O_AUX;SPRITE_AUX_P
+	CopyPtr BIRD_WUP_O_MASK;SPRITE_MASK_P
+              CopyPtr BIRD_WUP_O_IMASK;SPRITE_IMASK_P
+:TEST1	CopyPtr BIRD_WDN_O_MAIN;SPRITE_MAIN_P
+              CopyPtr BIRD_WDN_O_AUX;SPRITE_AUX_P
+	CopyPtr BIRD_WDN_O_MASK;SPRITE_MASK_P
+              CopyPtr BIRD_WDN_O_IMASK;SPRITE_IMASK_P
+	jmp :drawSprite
+:flapDownOdd	CopyPtr BIRD_WDN_O_MAIN;SPRITE_MAIN_P
+              CopyPtr BIRD_WDN_O_AUX;SPRITE_AUX_P
+	CopyPtr BIRD_WDN_O_MASK;SPRITE_MASK_P
+              CopyPtr BIRD_WDN_O_IMASK;SPRITE_IMASK_P
+	jmp :drawSprite
+:drawSprite
+	jsr DrawSpriteBetter
+	rts 
+

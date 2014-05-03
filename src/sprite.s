@@ -14,8 +14,11 @@ SPRITE_X_IDX  dw 0
 
 SPRITE_SCREEN_P equz $00
 SPRITE_MAIN_P equz $02
+SPRITE_SCREEN_P2 equz $02
 SPRITE_AUX_P	equz $04
+SPRITE_SCREEN_P3 equz $04
 SPRITE_MASK_P equz $FA
+SPRITE_SCREEN_P4 equz $FA
 SPRITE_IMASK_P equz $FC
 
 SPRITE_SCREEN_IDX db #$0
@@ -71,8 +74,9 @@ DrawSpriteLineC
 DD_EVEN	lda #0
 	sta SPRITE_SCREEN_IDX
 	sta TXTPAGE2
-	ldy SPRITE_X_IDX	; 
-:lineLoop	lda (SPRITE_IMASK_P),y
+	
+:lineLoop	ldy SPRITE_X_IDX	; 
+	lda (SPRITE_IMASK_P),y
 	beq :noPixel
 
 :collisionCheckDrawer
@@ -116,8 +120,9 @@ DD_ODD
 	lda #0
 	sta SPRITE_SCREEN_IDX
 	sta TXTPAGE1
-	ldy SPRITE_X_IDX	; 
-:lineLoop	lda (SPRITE_IMASK_P),y
+	
+:lineLoop	ldy SPRITE_X_IDX	; 
+	lda (SPRITE_IMASK_P),y
 	beq :noPixel
 
 :collisionCheckDrawer
