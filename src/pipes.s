@@ -25,11 +25,16 @@ PipeSpr_Main
 	hex 55,e5,e5,c5,e5,c5,c5,c5,c5,45,c5,45,45,55,77
 	hex 55,5e,5e,5c,5e,5c,5c,5c,5c,54,5c,54,54,55,77
 	hex 77,55,ee,ee,cc,ee,cc,cc,44,cc,44,44,55,77,77
+	
+PipeBody_Main_E hex 55,ee,ee,cc,cc,44,77
+PipeBody_Main_O hex 77,ee,cc,cc,44,44,55,77
 
 PipeSpr_Aux
 	hex aa,7a,7a,6a,7a,6a,6a,6a,6a,2a,6a,2a,2a,aa,bb
 	hex aa,a7,a7,a6,a7,a6,a6,a6,a6,a2,a6,a2,a2,aa,bb
 	hex bb,aa,77,77,66,77,66,66,22,66,22,22,aa,bb,bb
+PipeBody_Aux_E hex bb,77,66,66,22,22,aa,bb
+PipeBody_Aux_O hex aa,77,77,66,66,22,bb
 
 PipeInterval	equ #60	; game ticks to spawn new pipe
 PipeSpawn	db 0	; our counter
@@ -73,8 +78,12 @@ UpdatePipes	inc PipeSpawn
 	jsr SpawnPipe
 	lda #0
 	sta PipeSpawn
-:noSpawn	jsr MoveDrawPipes
-	rts
+:noSpawn	
+MoveDrawPipes	
+	jsr DrawPipes
+	jsr MovePipes
+	jmp UpdatePipesDone
+	
 
 SpawnPipe	lda PipeSpawnSema
 	asl	; convert to word index
@@ -97,26 +106,20 @@ SpawnPipe	lda PipeSpawnSema
 	sta PipeSpawnSema
 :done	rts
 
-MoveDrawPipes	
-	jsr DrawPipes
-	jsr MovePipes
-	rts
 
 MovePipes
-	ldx #0
+	ldx #2	;MaxPipes*2?
 :loop	lda BotPipes,x
 	beq :noPipe
 	dec BotPipes,x
 	dec TopPipes,x
-	lda TopPipes,x
-	cmp #PipeXScore
+	cmp #PipeXScore+1	; A should still be set
 	bne :noScore
 	jsr ScoreUp
 :noScore
-:noPipe	inx
-	inx
-	cpx #4
-	bcc :loop
+:noPipe	dex
+	dex
+	bpl :loop
 	rts
 
 
@@ -224,6 +227,9 @@ DrawPipe
 DrawPipeOdd	jsr SetPipeCapPtrs
 	sta TXTPAGE1	
 	ldy PIPE_X_IDX	; y= the x offset... yay dp indexing on 6502
+
+
+
 	ldx #0
 :l1_loop	lda PipeSpr_Main,x
 	sta (PIPE_DP),y
@@ -287,49 +293,94 @@ DrawPipeOddB
 *** Draw Body - Odd Full & Right version
 DrawPipeBodyOdd
 :loop	lda PIPE_Y_IDX
+	tay
 	lsr	; /2
 	cmp PIPE_BODY_BOT
 	bcs :done
-	ldy PIPE_Y_IDX	; revert to table-lookup form
+	;ldy PIPE_Y_IDX	; revert to table-lookup form
 
 	lda LoLineTable,y
 	sta PIPE_DP
 	lda LoLineTable+1,y
 	sta PIPE_DP+1	; pointer to line on screen
 	
+
 	sta TXTPAGE1
-	ldy PIPE_X_IDX
-	ldx #0
-:l1_loop	cpy #PIPE_RCLIP
-	beq :l1_clip_break	
-	lda 2*PIPE_WIDTH+PipeSpr_Main,x ; line 2
+*** Version1
+*	ldy PIPE_X_IDX
+*	ldx #0
+*:l1_loop	cpy #PIPE_RCLIP
+*	beq :l1_clip_break	
+*	lda 2*PIPE_WIDTH+PipeSpr_Main,x ; line 2
+*	sta (PIPE_DP),y
+*	iny
+*	inx
+*	inx
+*	cpx #PIPE_WIDTH
+*	bcc :l1_loop
+*:l1_clip_break
+
+*** Version 2
+*	ldy PIPE_X_IDX
+*	ldx #0
+*:testloop	cpy #PIPE_RCLIP
+*	beq :test_break
+*	lda PipeBody_Main_O,x
+*	sta (PIPE_DP),y
+*	iny
+*	inx
+*	cpx #PIPE_WIDTH/2
+*	bcc :testloop
+
+*** Version 2.1
+	lda PIPE_X_IDX
+	clc
+	adc #PIPE_WIDTH/2
+	pha	;PHA for below loop
+	tay	
+	ldx #PIPE_WIDTH/2
+:oddLoop	cpy #PIPE_RCLIP
+	bcs :oddBreak
+	lda PipeBody_Main_O,x
 	sta (PIPE_DP),y
-	iny
-	inx
-	inx
-	cpx #PIPE_WIDTH
-	bcc :l1_loop
-:l1_clip_break
+:oddBreak
+	dey
+	dex
+	bne :oddLoop	; we can skip the first pixel, transparent
 
 	sta TXTPAGE2
-	ldy PIPE_X_IDX
-	iny	; THE MOST IMPORTANT INY EVAR!!! :P
-	ldx #1
-:l2_loop	cpy #PIPE_RCLIP
-	beq :l2_clip_break	
-	lda 2*PIPE_WIDTH+PipeSpr_Aux,x ; line 2
+*** Version 1
+*	ldy PIPE_X_IDX
+*	iny	; THE MOST IMPORTANT INY EVAR!!! :P
+*	ldx #1
+*:l2_loop	cpy #PIPE_RCLIP
+*	beq :l2_clip_break	
+*	lda 2*PIPE_WIDTH+PipeSpr_Aux,x ; line 2
+*	sta (PIPE_DP),y
+*	iny
+*	inx
+*	inx
+*	cpx #PIPE_WIDTH
+*	bcc :l2_loop
+*:l2_clip_break
+
+*** Version 2.1
+	pla
+	tay	;PHA from above
+	ldx #PIPE_WIDTH/2-1
+:evenLoop	cpy #PIPE_RCLIP
+	bcs :evenBreak
+	lda PipeBody_Aux_O,x
 	sta (PIPE_DP),y
-	iny
-	inx
-	inx
-	cpx #PIPE_WIDTH
-	bcc :l2_loop
-:l2_clip_break
+:evenBreak
+	dey
+	dex
+	bpl :evenLoop
+
 	inc PIPE_Y_IDX
 	inc PIPE_Y_IDX
 	sec
 	bcs :loop
-
 :done	rts
 
 

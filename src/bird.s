@@ -179,7 +179,7 @@ UndrawBird	lda BIRD_Y
 	iny
 	dex
 	bne :wipe2
-	rts
+	jmp UndrawBirdDone
 
 
 
@@ -228,7 +228,7 @@ UndrawBird	lda BIRD_Y
 	iny
 	dex
 	bne :wipe4
-	rts
+	jmp UndrawBirdDone
 
 DrawBird
 	lda BIRD_X
@@ -266,10 +266,6 @@ DrawBird
               CopyPtr BIRD_WUP_O_AUX;SPRITE_AUX_P
 	CopyPtr BIRD_WUP_O_MASK;SPRITE_MASK_P
               CopyPtr BIRD_WUP_O_IMASK;SPRITE_IMASK_P
-:TEST1	CopyPtr BIRD_WDN_O_MAIN;SPRITE_MAIN_P
-              CopyPtr BIRD_WDN_O_AUX;SPRITE_AUX_P
-	CopyPtr BIRD_WDN_O_MASK;SPRITE_MASK_P
-              CopyPtr BIRD_WDN_O_IMASK;SPRITE_IMASK_P
 	jmp :drawSprite
 :flapDownOdd	CopyPtr BIRD_WDN_O_MAIN;SPRITE_MAIN_P
               CopyPtr BIRD_WDN_O_AUX;SPRITE_AUX_P
@@ -278,5 +274,5 @@ DrawBird
 	jmp :drawSprite
 :drawSprite
 	jsr DrawSpriteBetter
-	rts 
+	jmp DrawBirdDone 
 

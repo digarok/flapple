@@ -41,7 +41,28 @@ GameLoop
 	; update player / draw (w/collision)
 	; update score
 
-	jsr UndrawBird
+	jmp UndrawBird
+UndrawBirdDone
+	jmp UpdatePipes
+UpdatePipesDone
+	jmp DrawScore
+DrawScoreDone
+	jmp HandleInput
+HandleInputDone
+	jmp DrawBird
+DrawBirdDone
+	jmp UpdateGrass
+UpdateGrassDone
+
+	jsr FlapBird
+	jsr VBlank
+	;jsr WaitKey
+	lda QuitFlag
+	beq GameLoop
+	bne Quit
+
+
+HandleInput
 :kloop	lda KEY
 	bpl :noKey
 :key	sta STROBE
@@ -55,24 +76,7 @@ GameLoop
 	bpl :keyDone
 :up	dec BIRD_Y
 :noKey
-:keyDone
-
-	jsr UpdatePipes
-	;jsr BirdTest
-	jsr DrawBird
-	jsr VBlank	
-	jsr DrawScore
-
-	jsr UpdateGrass
-
-	jsr FlapBird
-	jsr VBlank
-	;jsr WaitKey
-	clc
-	bcc GameLoop
-
-
-
+:keyDone	jmp HandleInputDone
 
 QuitFlag	db 0	; set to 1 to quit
 
@@ -113,7 +117,7 @@ DrawScore	lda ScoreLo
 	ldx #18
 	sta Lo01,x
 	sta Lo02,x
-	rts
+	jmp DrawScoreDone
 
 ScoreUp	sed
 	lda ScoreLo
@@ -221,7 +225,7 @@ UpdateGrass	inc GrassState
 	inx
 	cpx #40
 	bcc :lp8
-	rts
+	jmp UpdateGrassDone
 
 GrassState	db  00
 GrassTop	hex CE,CE,4E,4E,CE,CE,4E,4E
