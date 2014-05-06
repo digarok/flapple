@@ -295,9 +295,9 @@ _vblType	db 0	; 0 - normal, 1 - IIc
 **************************************************
 VBlankNormal
 :loop1	lda RDVBLBAR
-	bmi :loop1 ; not VBL
+	bpl :loop1 ; not VBL
 :loop	lda $c019
-	bpl :loop ;wait for beginning of VBL interval
+	bmi :loop ;wait for beginning of VBL interval
 	rts
 
 

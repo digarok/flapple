@@ -1,5 +1,5 @@
 BIRD_X	db #17	; (0-79)
-BIRD_Y	db #15	; (0-47)
+BIRD_Y	db #17	; (0-47)
 BIRD_FLAP	db #0	; 0=down 1=up
 BIRD_FLAP_RATE equ #3
 BIRD_FLAP_CNT	db 0

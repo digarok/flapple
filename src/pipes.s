@@ -224,6 +224,92 @@ DrawPipe
 	rts
 
 
+DrawPipeOddL	
+	jsr SetPipeCapPtrs
+	sta TXTPAGE1
+	ldy PIPE_X_IDX	; y= the x offset... yay dp indexing on 6502
+	ldx #0
+:l1_loop	cpy #PIPE_RCLIP
+	bcs :l1_skip
+	lda PipeSpr_Main,x
+	sta (PIPE_DP),y
+	lda PipeSpr_Main+PIPE_WIDTH,x
+	sta (PIPE_DP2),y
+:l1_skip	iny	; can check this for clipping?
+	inx
+	inx	;\_ skip a col
+	cpx #PIPE_WIDTH
+	bcc :l1_loop
+
+
+	sta TXTPAGE2
+	ldy PIPE_X_IDX
+	iny	;-- pixel after - fun mapping
+	ldx #1
+:l2_loop	cpy #PIPE_RCLIP
+	bcs :l2_skip
+	lda PipeSpr_Aux,x
+	sta (PIPE_DP),y
+	lda PipeSpr_Aux+PIPE_WIDTH,x
+	sta (PIPE_DP2),y
+:l2_skip	iny	; can check this for clipping?
+	inx
+	inx	;\_ skip a col
+	cpx #PIPE_WIDTH
+	bcc :l2_loop
+
+*** Handle body 
+	lda PIPE_T_B	; TOP or BOTTOM ?
+	bne :doBottom
+:doTop	jsr DrawPipeOddTL
+	rts
+:doBottom	jsr DrawPipeOddBL
+	rts
+
+
+
+DrawPipeEvenL	
+	jsr SetPipeCapPtrs
+	sta TXTPAGE2	
+	ldy PIPE_X_IDX	; y= the x offset... yay dp indexing on 6502
+	ldx #0
+:l1_loop	cpy #PIPE_RCLIP
+	bcs :l1_skip
+	lda PipeSpr_Aux,x
+	sta (PIPE_DP),y
+	lda PipeSpr_Aux+PIPE_WIDTH,x
+	sta (PIPE_DP2),y
+:l1_skip	iny	; can check this for clipping?
+	inx
+	inx	;\_ skip a col
+	cpx #PIPE_WIDTH
+	bcc :l1_loop
+
+	sta TXTPAGE1
+	ldy PIPE_X_IDX
+	ldx #1
+:l2_loop	cpy #PIPE_RCLIP
+	bcs :l2_skip
+	lda PipeSpr_Main,x
+	sta (PIPE_DP),y
+	lda PipeSpr_Main+PIPE_WIDTH,x
+	sta (PIPE_DP2),y
+:l2_skip	iny	; can check this for clipping?
+	inx
+	inx	;\_ skip a col
+	cpx #PIPE_WIDTH
+	bcc :l2_loop
+
+
+*** Handle body 
+	lda PIPE_T_B	; TOP or BOTTOM ?
+	bne :doBottom
+:doTop	jsr DrawPipeEvenTL
+	rts
+:doBottom	jsr DrawPipeEvenBL
+	rts
+
+
 DrawPipeOdd	jsr SetPipeCapPtrs
 	sta TXTPAGE1	
 	ldy PIPE_X_IDX	; y= the x offset... yay dp indexing on 6502
@@ -372,74 +458,57 @@ DrawPipeEvenB
 	jsr DrawPipeBodyEven
 	rts
 
-*****************************************
-*** Draw Body - Even Full & Right version
-DrawPipeBodyEven
-:loop	lda PIPE_Y_IDX
-	lsr	; /2
-	cmp PIPE_BODY_BOT
-	bcs :done
-	ldy PIPE_Y_IDX	; revert to table-lookup form
+************************************
+*** Draw Body - Odd Top Left version
+DrawPipeOddTL
+	lda #0
+	sta PIPE_BODY_TOP
+	sta PIPE_Y_IDX              ; current line
+	lda PIPE_Y
+	sta PIPE_BODY_BOT
+	jsr DrawPipeBodyOddL
+	rts
 
-	lda LoLineTable,y
-	sta PIPE_DP
-	lda LoLineTable+1,y
-	sta PIPE_DP+1	; pointer to line on screen
-	
-	sta TXTPAGE1
-*	ldy PIPE_X_IDX
-*	ldx #1
-*:l1_loop	cpy #PIPE_RCLIP
-*	beq :l1_clip_break	
-*	lda 2*PIPE_WIDTH+PipeSpr_Main,x ; line 2
-*	sta (PIPE_DP),y
-*	iny
-*	inx
-*	inx
-*	cpx #PIPE_WIDTH
-*	bcc :l1_loop
-*:l1_clip_break
+****************************************
+*** Draw Body - Top Full & Right version
+DrawPipeEvenTL  
+	lda #0
+	sta PIPE_BODY_TOP
+	sta PIPE_Y_IDX	; current line
+	lda PIPE_Y
+	sta PIPE_BODY_BOT
+	jsr DrawPipeBodyEvenL  
+	rts
 
-*** Version 2.1
-	lda PIPE_X_IDX
-	clc
-	adc #PIPE_WIDTH/2-1
-	pha	;PHA for below loop
-	tay	
-	ldx #PIPE_WIDTH/2-1
-:oddLoop	cpy #PIPE_RCLIP
-	bcs :oddBreak
-	lda PipeBody_Main_E,x
-	sta (PIPE_DP),y
-:oddBreak
-	dey
-	dex
-	bpl :oddLoop	
-
-
-
-
-	sta TXTPAGE2
-*** Version 2.1
-	pla
-	tay	;PHA from above
+***************************************
+*** Draw Body - Odd Bottom Left version
+DrawPipeOddBL
+	ldy PIPE_Y
 	iny
-	ldx #PIPE_WIDTH/2
-:evenLoop	cpy #PIPE_RCLIP
-	bcs :evenBreak
-	lda PipeBody_Aux_E,x
-	sta (PIPE_DP),y
-:evenBreak
-	dey
-	dex
-	bpl :evenLoop
-	inc PIPE_Y_IDX
-	inc PIPE_Y_IDX
-	jmp :loop
-	;sec
-	;bcs :loop
+	iny
+	sty PIPE_BODY_TOP
+	tya
+	asl		; *2 
+	sta PIPE_Y_IDX	; current line
+	lda #22
+	sta PIPE_BODY_BOT
+	jsr DrawPipeBodyOddL
+	rts
 
-:done	rts
+***************************************
+*** Draw Body - Odd Bottom Left version
+DrawPipeEvenBL
+	ldy PIPE_Y
+	iny
+	iny
+	sty PIPE_BODY_TOP
+	tya
+	asl		; *2 
+	sta PIPE_Y_IDX	; current line
+	lda #22
+	sta PIPE_BODY_BOT
+	jsr DrawPipeBodyEvenL
+	rts
 
 
 DrawPipeEven	jsr SetPipeCapPtrs
@@ -475,6 +544,60 @@ DrawPipeEven	jsr SetPipeCapPtrs
 	rts
 :doBottom	jsr DrawPipeEvenB
 	rts
+
+*****************************************
+*** Draw Body - Even Full & Right version
+DrawPipeBodyEven
+:loop	lda PIPE_Y_IDX
+	lsr	; /2
+	cmp PIPE_BODY_BOT
+	bcs :done
+	ldy PIPE_Y_IDX	; revert to table-lookup form
+
+	lda LoLineTable,y
+	sta PIPE_DP
+	lda LoLineTable+1,y
+	sta PIPE_DP+1	; pointer to line on screen
+	
+	sta TXTPAGE1
+*** Version 2.1
+	lda PIPE_X_IDX
+	clc
+	adc #PIPE_WIDTH/2-1
+	pha	;PHA for below loop
+	tay	
+	ldx #PIPE_WIDTH/2-1
+:oddLoop	cpy #PIPE_RCLIP
+	bcs :oddBreak
+	lda PipeBody_Main_E,x
+	sta (PIPE_DP),y
+:oddBreak
+	dey
+	dex
+	bpl :oddLoop	
+
+
+	sta TXTPAGE2
+*** Version 2.1
+	pla
+	tay	;PHA from above
+	iny
+	ldx #PIPE_WIDTH/2
+:evenLoop	cpy #PIPE_RCLIP
+	bcs :evenBreak
+	lda PipeBody_Aux_E,x
+	sta (PIPE_DP),y
+:evenBreak
+	dey
+	dex
+	bpl :evenLoop
+	inc PIPE_Y_IDX
+	inc PIPE_Y_IDX
+	jmp :loop
+
+:done	rts
+
+
 
 
 
@@ -568,73 +691,54 @@ DrawPipeEvenR
 :doBottom	jsr DrawPipeEvenB
 	rts
 
-DrawPipeOddL	
-	jsr SetPipeCapPtrs
-	sta TXTPAGE1
-	ldy PIPE_X_IDX	; y= the x offset... yay dp indexing on 6502
-	ldx #0
-:l1_loop	cpy #PIPE_RCLIP
-	bcs :l1_skip
-	lda PipeSpr_Main,x
-	sta (PIPE_DP),y
-	lda PipeSpr_Main+PIPE_WIDTH,x
-	sta (PIPE_DP2),y
-:l1_skip	iny	; can check this for clipping?
-	inx
-	inx	;\_ skip a col
-	cpx #PIPE_WIDTH
-	bcc :l1_loop
+********************************
+*** Draw Body - Even Left version
+DrawPipeBodyEvenL
+:loop	lda PIPE_Y_IDX
+	lsr	; *2
+	cmp PIPE_BODY_BOT
+	beq :done
+	ldy PIPE_Y_IDX
 
+	lda LoLineTable,y
+	sta PIPE_DP
+	lda LoLineTable+1,y
+	sta PIPE_DP+1	; pointer to line on screen
 
 	sta TXTPAGE2
-	ldy PIPE_X_IDX
-	iny	;-- pixel after - fun mapping
-	ldx #1
-:l2_loop	cpy #PIPE_RCLIP
-	bcs :l2_skip
-	lda PipeSpr_Aux,x
+	lda PIPE_X_IDX
+	clc
+	adc #PIPE_WIDTH/2
+	bmi :done
+	pha	;PHA for below loop
+	tay	
+	ldx #PIPE_WIDTH/2
+	
+:evenLoop	lda PipeBody_Aux_E,x
 	sta (PIPE_DP),y
-	lda PipeSpr_Aux+PIPE_WIDTH,x
-	sta (PIPE_DP2),y
-:l2_skip	iny	; can check this for clipping?
-	inx
-	inx	;\_ skip a col
-	cpx #PIPE_WIDTH
-	bcc :l2_loop
+	dex
+	dey
+	bpl :evenLoop
 
-*** Handle body 
-	lda PIPE_T_B	; TOP or BOTTOM ?
-	bne :doBottom
-:doTop	jsr DrawPipeOddTL
-	rts
-:doBottom	jsr DrawPipeOddBL
-	rts
+	sta TXTPAGE1
+	pla	;PLA from above
+	tay	
+	ldx #PIPE_WIDTH/2
 
-************************************
-*** Draw Body - Odd Top Left version
-DrawPipeOddTL
-	lda #0
-	sta PIPE_BODY_TOP
-	sta PIPE_Y_IDX              ; current line
-	lda PIPE_Y
-	sta PIPE_BODY_BOT
-	jsr DrawPipeBodyOddL
+:oddLoop	lda PipeBody_Main_E,x
+	sta (PIPE_DP),y
+	dex
+	dey
+	bpl :oddLoop
+
+
+	inc PIPE_Y_IDX
+	inc PIPE_Y_IDX
+	jmp :loop
+:done
 	rts
 
-***************************************
-*** Draw Body - Odd Bottom Left version
-DrawPipeOddBL
-	ldy PIPE_Y
-	iny
-	iny
-	sty PIPE_BODY_TOP
-	tya
-	asl		; *2 
-	sta PIPE_Y_IDX	; current line
-	lda #22
-	sta PIPE_BODY_BOT
-	jsr DrawPipeBodyOddL
-	rts
+
 
 ********************************
 *** Draw Body - Odd Left version
@@ -649,128 +753,39 @@ DrawPipeBodyOddL
 	sta PIPE_DP
 	lda LoLineTable+1,y
 	sta PIPE_DP+1	; pointer to line on screen
-	
+
+
 	sta TXTPAGE1
-	ldy PIPE_X_IDX
-	ldx #0
-:l1_loop	cpy #PIPE_RCLIP
-	bcs :l1_clip_skip
-	lda 2*PIPE_WIDTH+PipeSpr_Main,x ; line 2
+	lda PIPE_X_IDX
+	clc
+	adc #PIPE_WIDTH/2
+	bmi :done
+	pha	;PHA for below loop
+	tay	
+	ldx #PIPE_WIDTH/2
+	
+:evenLoop	lda PipeBody_Main_O,x
 	sta (PIPE_DP),y
-:l1_clip_skip	iny
-	inx
-	inx
-	cpx #PIPE_WIDTH
-	bcc :l1_loop
-:l1_clip_break
+	dex
+	dey
+	bpl :evenLoop
+
 
 	sta TXTPAGE2
-	ldy PIPE_X_IDX
-	iny	; THE MOST IMPORTANT INY EVAR!!! :P
-	ldx #1
-:l2_loop	cpy #PIPE_RCLIP
-	bcs :l2_clip_skip
-	lda 2*PIPE_WIDTH+PipeSpr_Aux,x ; line 2
+	pla	;PLA from above
+	tay	
+	ldx #PIPE_WIDTH/2-1
+
+:oddLoop	lda PipeBody_Aux_O,x
 	sta (PIPE_DP),y
-:l2_clip_skip	iny
-	inx
-	inx
-	cpx #PIPE_WIDTH
-	bcc :l2_loop
-:l2_clip_break
+	dex
+	dey
+	bpl :oddLoop
+
 	inc PIPE_Y_IDX
 	inc PIPE_Y_IDX
 	jmp :loop
-	;sec
-	;bcs :loop
 
 :done	rts
 
 
-DrawPipeEvenL	
-	jsr SetPipeCapPtrs
-	sta TXTPAGE2	
-	ldy PIPE_X_IDX	; y= the x offset... yay dp indexing on 6502
-	ldx #0
-:l1_loop	cpy #PIPE_RCLIP
-	bcs :l1_skip
-	lda PipeSpr_Aux,x
-	sta (PIPE_DP),y
-	lda PipeSpr_Aux+PIPE_WIDTH,x
-	sta (PIPE_DP2),y
-:l1_skip	iny	; can check this for clipping?
-	inx
-	inx	;\_ skip a col
-	cpx #PIPE_WIDTH
-	bcc :l1_loop
-
-	sta TXTPAGE1
-	ldy PIPE_X_IDX
-	ldx #1
-:l2_loop	cpy #PIPE_RCLIP
-	bcs :l2_skip
-	lda PipeSpr_Main,x
-	sta (PIPE_DP),y
-	lda PipeSpr_Main+PIPE_WIDTH,x
-	sta (PIPE_DP2),y
-:l2_skip	iny	; can check this for clipping?
-	inx
-	inx	;\_ skip a col
-	cpx #PIPE_WIDTH
-	bcc :l2_loop
-
-
-*** Handle body 
-	lda PIPE_T_B	; TOP or BOTTOM ?
-	bne :doBottom
-	rts	; @TODO!!! starting with bottom
-:doTop	jsr DrawPipeEvenT
-	rts
-:doBottom	jsr DrawPipeEvenBL
-	rts
-
-
-DrawPipeEvenBL
-	inc PIPE_Y_IDX	; set to advance to 3rd line (2) of sprite pos
-	inc PIPE_Y_IDX	; 
-
-:loop	inc PIPE_Y_IDX	; remember this is the *2 table lookup	
-	inc PIPE_Y_IDX
-	ldy PIPE_Y_IDX
-	cpy #44	; make sure we haven't hit bottom... pun intended
-	beq :done
-	lda LoLineTable,y
-	sta PIPE_DP
-	lda LoLineTable+1,y
-	sta PIPE_DP+1	; pointer to line on screen
-	
-	sta TXTPAGE1
-	ldy PIPE_X_IDX
-	ldx #1
-:l1_loop	cpy #PIPE_RCLIP
-	bcs :l1_clip_skip
-	lda 2*PIPE_WIDTH+PipeSpr_Main,x ; line 2
-	sta (PIPE_DP),y
-:l1_clip_skip	iny
-	inx
-	inx
-	cpx #PIPE_WIDTH
-	bcc :l1_loop
-:l1_clip_break
-
-	sta TXTPAGE2
-	ldy PIPE_X_IDX
-	ldx #0
-:l2_loop	cpy #PIPE_RCLIP
-	bcs :l2_clip_skip
-	lda 2*PIPE_WIDTH+PipeSpr_Aux,x ; line 2
-	sta (PIPE_DP),y
-:l2_clip_skip	iny
-	inx
-	inx
-	cpx #PIPE_WIDTH
-	bcc :l2_loop
-:l2_clip_break sec
-	bcs :loop
-
-:done	rts
