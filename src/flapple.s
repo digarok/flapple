@@ -45,12 +45,12 @@ GameLoop
 UndrawBirdDone
 	jmp UpdatePipes
 UpdatePipesDone
-	jmp DrawScore
-DrawScoreDone
 	jmp HandleInput
 HandleInputDone
 	jmp DrawBird
 DrawBirdDone
+	jmp DrawScore
+DrawScoreDone
 	jmp UpdateGrass
 UpdateGrassDone
 
@@ -295,9 +295,9 @@ _vblType	db 0	; 0 - normal, 1 - IIc
 **************************************************
 VBlankNormal
 :loop1	lda RDVBLBAR
-	bpl :loop1 ; not VBL
+	bmi :loop1 ; not VBL
 :loop	lda $c019
-	bmi :loop ;wait for beginning of VBL interval
+	bpl :loop ;wait for beginning of VBL interval
 	rts
 
 

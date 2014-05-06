@@ -306,31 +306,6 @@ DrawPipeBodyOdd
 	
 
 	sta TXTPAGE1
-*** Version1
-*	ldy PIPE_X_IDX
-*	ldx #0
-*:l1_loop	cpy #PIPE_RCLIP
-*	beq :l1_clip_break	
-*	lda 2*PIPE_WIDTH+PipeSpr_Main,x ; line 2
-*	sta (PIPE_DP),y
-*	iny
-*	inx
-*	inx
-*	cpx #PIPE_WIDTH
-*	bcc :l1_loop
-*:l1_clip_break
-
-*** Version 2
-*	ldy PIPE_X_IDX
-*	ldx #0
-*:testloop	cpy #PIPE_RCLIP
-*	beq :test_break
-*	lda PipeBody_Main_O,x
-*	sta (PIPE_DP),y
-*	iny
-*	inx
-*	cpx #PIPE_WIDTH/2
-*	bcc :testloop
 
 *** Version 2.1
 	lda PIPE_X_IDX
@@ -349,21 +324,6 @@ DrawPipeBodyOdd
 	bne :oddLoop	; we can skip the first pixel, transparent
 
 	sta TXTPAGE2
-*** Version 1
-*	ldy PIPE_X_IDX
-*	iny	; THE MOST IMPORTANT INY EVAR!!! :P
-*	ldx #1
-*:l2_loop	cpy #PIPE_RCLIP
-*	beq :l2_clip_break	
-*	lda 2*PIPE_WIDTH+PipeSpr_Aux,x ; line 2
-*	sta (PIPE_DP),y
-*	iny
-*	inx
-*	inx
-*	cpx #PIPE_WIDTH
-*	bcc :l2_loop
-*:l2_clip_break
-
 *** Version 2.1
 	pla
 	tay	;PHA from above
@@ -379,8 +339,9 @@ DrawPipeBodyOdd
 
 	inc PIPE_Y_IDX
 	inc PIPE_Y_IDX
-	sec
-	bcs :loop
+	jmp :loop
+	;sec
+	;bcs :loop
 :done	rts
 
 
@@ -426,36 +387,57 @@ DrawPipeBodyEven
 	sta PIPE_DP+1	; pointer to line on screen
 	
 	sta TXTPAGE1
-	ldy PIPE_X_IDX
-	ldx #1
-:l1_loop	cpy #PIPE_RCLIP
-	beq :l1_clip_break	
-	lda 2*PIPE_WIDTH+PipeSpr_Main,x ; line 2
+*	ldy PIPE_X_IDX
+*	ldx #1
+*:l1_loop	cpy #PIPE_RCLIP
+*	beq :l1_clip_break	
+*	lda 2*PIPE_WIDTH+PipeSpr_Main,x ; line 2
+*	sta (PIPE_DP),y
+*	iny
+*	inx
+*	inx
+*	cpx #PIPE_WIDTH
+*	bcc :l1_loop
+*:l1_clip_break
+
+*** Version 2.1
+	lda PIPE_X_IDX
+	clc
+	adc #PIPE_WIDTH/2-1
+	pha	;PHA for below loop
+	tay	
+	ldx #PIPE_WIDTH/2-1
+:oddLoop	cpy #PIPE_RCLIP
+	bcs :oddBreak
+	lda PipeBody_Main_E,x
 	sta (PIPE_DP),y
-	iny
-	inx
-	inx
-	cpx #PIPE_WIDTH
-	bcc :l1_loop
-:l1_clip_break
+:oddBreak
+	dey
+	dex
+	bpl :oddLoop	
+
+
+
 
 	sta TXTPAGE2
-	ldy PIPE_X_IDX
-	ldx #0
-:l2_loop	cpy #PIPE_RCLIP
-	beq :l2_clip_break	
-	lda 2*PIPE_WIDTH+PipeSpr_Aux,x ; line 2
-	sta (PIPE_DP),y
+*** Version 2.1
+	pla
+	tay	;PHA from above
 	iny
-	inx
-	inx
-	cpx #PIPE_WIDTH
-	bcc :l2_loop
-:l2_clip_break
+	ldx #PIPE_WIDTH/2
+:evenLoop	cpy #PIPE_RCLIP
+	bcs :evenBreak
+	lda PipeBody_Aux_E,x
+	sta (PIPE_DP),y
+:evenBreak
+	dey
+	dex
+	bpl :evenLoop
 	inc PIPE_Y_IDX
 	inc PIPE_Y_IDX
-	sec
-	bcs :loop
+	jmp :loop
+	;sec
+	;bcs :loop
 
 :done	rts
 
@@ -698,8 +680,9 @@ DrawPipeBodyOddL
 :l2_clip_break
 	inc PIPE_Y_IDX
 	inc PIPE_Y_IDX
-	sec
-	bcs :loop
+	jmp :loop
+	;sec
+	;bcs :loop
 
 :done	rts
 
