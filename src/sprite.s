@@ -61,7 +61,8 @@ DrawSpriteBetter
 	sta SPRITE_SCREEN_P	; SHOULD NEVER CARRY?
 			
 			
-	jsr DrawSpriteLineC
+	jmp DrawSpriteLineC
+]DSLCD_done
 	inc SPRITE_Y
 	dec SPRITE_H
 	lda SPRITE_H
@@ -155,6 +156,6 @@ DD_ODD
 	cpy SPRITE_W
 	bcc :lineLoop
 	dec SPRITE_X_IDX	; -1 column offset (for next row)
-	rts
 
+	jmp ]DSLCD_done
 
