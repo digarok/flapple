@@ -119,21 +119,6 @@ DrawScore	lda ScoreLo
 	sta Lo02,x
 	jmp DrawScoreDone
 
-ScoreUp	sed
-	lda ScoreLo
-	clc
-	adc #1
-	sta ScoreLo
-	bcc :noFlip
-	lda ScoreHi
-	adc #0
-	sta ScoreHi
-:noFlip	cld
-	rts
-
-PipeXScore    equ 50
-ScoreLo	db 0
-ScoreHi	db 0
 
 
 	

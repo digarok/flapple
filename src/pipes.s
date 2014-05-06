@@ -64,6 +64,11 @@ PIPE_EVEN_ODD db 0	; 0=even, Y=odd
 PIPE_TOP	equ 0	; enum for top pipe type
 PIPE_BOT	equ 1	; enum for bottom pipe type
 
+
+PipeXScore    equ 50
+ScoreLo	db 0
+ScoreHi	db 0
+
 * pipe min  =  15x6 pixels  =  15x3 bytes
 * playfield =  80x48 pixels =  80x24 bytes
 *   - grass =	 80x44 pixels =  80x22 bytes
@@ -80,8 +85,8 @@ UpdatePipes	inc PipeSpawn
 	sta PipeSpawn
 :noSpawn	
 MoveDrawPipes	
-	jsr DrawPipes
 	jsr MovePipes
+	jsr DrawPipes
 	jmp UpdatePipesDone
 	
 
@@ -115,7 +120,17 @@ MovePipes
 	dec TopPipes,x
 	cmp #PipeXScore+1	; A should still be set
 	bne :noScore
-	jsr ScoreUp
+:ScoreUp	sed
+	lda ScoreLo
+	clc
+	adc #1
+	sta ScoreLo
+	bcc :noFlip
+	lda ScoreHi
+	adc #0
+	sta ScoreHi
+:noFlip	cld
+
 :noScore
 :noPipe	dex
 	dex
