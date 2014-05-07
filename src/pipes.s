@@ -206,9 +206,9 @@ DrawPipe
 	lsr
 	sta PIPE_X_IDX
 	bcc :evenR
-:oddR	jsr DrawPipeOddR
+:oddR	jsr DrawPipeOdd
 	rts
-:evenR	jsr DrawPipeEvenR
+:evenR	jsr DrawPipeEven
 	rts
 :notOver	cmp #16
 	bcs :NOCLIP
@@ -782,98 +782,6 @@ DrawPipeBodyEven
 :done	rts
 
 
-
-
-
-DrawPipeOddR
-	jsr SetPipeCapPtrs
-	sta TXTPAGE1	
-	ldy PIPE_X_IDX	; y= x offset... yay dp indexing on 6502
-	ldx #0
-:l1_loop
-	cpy #PIPE_RCLIP ;this works for underflow too (?) i think	
-	bcs :l1_break
-	lda PipeSpr_Main,x
-	sta (PIPE_DP),y
-	lda PipeSpr_Main+PIPE_WIDTH,x
-	sta (PIPE_DP2),y
-	
-	iny	; can check this for clipping?
-	inx
-	inx	;\_ skip a col
-	cpx #PIPE_WIDTH
-	bcc :l1_loop
-:l1_break
-
-	sta TXTPAGE2
-	ldy PIPE_X_IDX
-	iny	;-- pixel after - fun mapping
-	ldx #1
-:l2_loop	
-	cpy #PIPE_RCLIP
-	bcs :l2_break
-
-	lda PipeSpr_Aux,x
-	sta (PIPE_DP),y
-	lda PipeSpr_Aux+PIPE_WIDTH,x
-	sta (PIPE_DP2),y
-
-	iny	; can check this for clipping?
-	inx
-	inx	;\_ skip a col
-	cpx #PIPE_WIDTH
-	bcc :l2_loop
-:l2_break	
-
-*** Handle body 
-	lda PIPE_T_B	; TOP or BOTTOM ?
-	bne :doBottom
-:doTop	jsr DrawPipeOddT
-	rts
-:doBottom	jsr DrawPipeOddB
-	rts
-
-DrawPipeEvenR
-	jsr SetPipeCapPtrs
-	sta TXTPAGE2	
-	ldy PIPE_X_IDX	; y= the x offset... yay dp indexing on 6502
-	ldx #0
-:l1_loop	lda PipeSpr_Aux,x
-	sta (PIPE_DP),y
-	lda PipeSpr_Aux+PIPE_WIDTH,x
-	sta (PIPE_DP2),y
-	iny	; can check this for clipping?
-	cpy #PIPE_RCLIP
-	bcs :l1_break
-	inx
-	inx	;\_ skip a col
-	cpx #PIPE_WIDTH
-	bcc :l1_loop
-
-:l1_break	sta TXTPAGE1
-	ldy PIPE_X_IDX
-	ldx #1
-:l2_loop
-	cpy #PIPE_RCLIP
-	bcs :l2_break
-	lda PipeSpr_Main,x
-	sta (PIPE_DP),y
-	lda PipeSpr_Main+PIPE_WIDTH,x
-	sta (PIPE_DP2),y
-	iny	; can check this for clipping?
-	inx
-	inx	;\_ skip a col
-	cpx #PIPE_WIDTH
-	bcc :l2_loop
-:l2_break	
-
-* Handle body 
-	lda PIPE_T_B	; TOP or BOTTOM ?
-	bne :doBottom
-:doTop	jsr DrawPipeEvenT
-	rts
-:doBottom	jsr DrawPipeEvenB
-	rts
 
 ********************************
 *** Draw Body - Even Left version
