@@ -338,35 +338,113 @@ DrawPipeEvenL
 
 
 DrawPipeOdd	jsr SetPipeCapPtrs
-	sta TXTPAGE1	
+	sta TXTPAGE1
 	ldy PIPE_X_IDX	; y= the x offset... yay dp indexing on 6502
+			; for this "odd" routine, we add 1 for TXTPAGE2
 
-
-
-	ldx #0
-:l1_loop	lda PipeSpr_Main,x
+			; optimized by hand, not perfect, but big help
+		;col 0
+	cpy #PIPE_RCLIP
+	bcs :RCLIP
+	lda #$55
 	sta (PIPE_DP),y
-	lda PipeSpr_Main+PIPE_WIDTH,x
 	sta (PIPE_DP2),y
-	iny	; can check this for clipping?
-	inx
-	inx	;\_ skip a col
-	cpx #PIPE_WIDTH
-	bcc :l1_loop
+	iny	;col 2
+	cpy #PIPE_RCLIP
+	bcs :RCLIP
+	lda #$E5
+	sta (PIPE_DP),y
+	lda #$5E
+	sta (PIPE_DP2),y
+	iny	;col 4
+	cpy #PIPE_RCLIP
+	bcs :RCLIP
+	sta (PIPE_DP2),y
+	lda #$E5
+	sta (PIPE_DP),y
+	iny	;col 6
+	cpy #PIPE_RCLIP
+	bcs :RCLIP
+	lda #$C5
+	sta (PIPE_DP),y
+	lda #$5C
+	sta (PIPE_DP2),y
+	iny	;col 8
+	cpy #PIPE_RCLIP
+	bcs :RCLIP
+	sta (PIPE_DP2),y
+	lda #$C5
+	sta (PIPE_DP),y
+	iny	;col 10
+	cpy #PIPE_RCLIP
+	bcs :RCLIP
+	sta (PIPE_DP),y
+	lda #$5C
+	sta (PIPE_DP2),y
+	iny	;col 12
+	cpy #PIPE_RCLIP
+	bcs :RCLIP
+	lda #$45
+	sta (PIPE_DP),y
+	lda #$54
+	sta (PIPE_DP2),y
+	iny	;col 14 (final!)
+	cpy #PIPE_RCLIP
+	bcs :RCLIP
+	lda #$77
+	sta (PIPE_DP),y
+	sta (PIPE_DP2),y
+:RCLIP
 
 	sta TXTPAGE2
-	ldy PIPE_X_IDX
-	iny	;-- pixel after - fun mapping
-	ldx #1
-:l2_loop	lda PipeSpr_Aux,x
+	ldy PIPE_X_IDX	; y= the x offset... yay dp indexing on 6502
+	iny	; TXTPAGE2 is +1 in "odd" mode
+		;col 1
+	cpy #PIPE_RCLIP
+	bcs :RCLIP2
+	lda #$7A
 	sta (PIPE_DP),y
-	lda PipeSpr_Aux+PIPE_WIDTH,x
+	lda #$A7
 	sta (PIPE_DP2),y
-	iny	; can check this for clipping?
-	inx
-	inx	;\_ skip a col
-	cpx #PIPE_WIDTH
-	bcc :l2_loop
+	iny	;col 3
+	cpy #PIPE_RCLIP
+	bcs :RCLIP2
+	lda #$6A
+	sta (PIPE_DP),y
+	lda #$A6
+	sta (PIPE_DP2),y
+	iny	;col 5
+	cpy #PIPE_RCLIP
+	bcs :RCLIP2
+	sta (PIPE_DP2),y
+	lda #$6A
+	sta (PIPE_DP),y
+	iny	;col 7
+	cpy #PIPE_RCLIP
+	bcs :RCLIP2
+	sta (PIPE_DP),y
+	lda #$A6
+	sta (PIPE_DP2),y
+	iny	;col 9
+	cpy #PIPE_RCLIP
+	bcs :RCLIP2
+	lda #$2A
+	sta (PIPE_DP),y
+	lda #$A2
+	sta (PIPE_DP2),y
+	iny	;col 11
+	cpy #PIPE_RCLIP
+	bcs :RCLIP2
+	sta (PIPE_DP2),y
+	lda #$2A
+	sta (PIPE_DP),y
+	iny	;col 13
+	cpy #PIPE_RCLIP
+	bcs :RCLIP2
+	lda #$AA
+	sta (PIPE_DP),y
+	sta (PIPE_DP2),y
+:RCLIP2
 * Handle body 
 	lda PIPE_T_B	; TOP or BOTTOM ?
 	bne :doBottom
