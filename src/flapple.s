@@ -41,6 +41,7 @@ GameLoop
 	; update player / draw (w/collision)
 	; update score
 
+	jsr VBlank
 	jmp UndrawBird
 UndrawBirdDone
 	jmp UpdatePipes
@@ -55,7 +56,6 @@ DrawScoreDone
 UpdateGrassDone
 
 	jsr FlapBird
-	jsr VBlank
 	;jsr WaitKey
 	lda QuitFlag
 	beq GameLoop
@@ -114,9 +114,8 @@ DrawScore	lda ScoreLo
 	jsr DrawNum
 	lda #$FF
 	sta TXTPAGE1
-	ldx #18
-	sta Lo01,x
-	sta Lo02,x
+	sta Lo01+18
+	sta Lo02+18
 	jmp DrawScoreDone
 
 

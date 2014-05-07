@@ -201,10 +201,8 @@ DrawPipe
 	lsr
 	sta PIPE_X_IDX
 	bcc :evenR
-:oddR	jsr DrawPipeOdd
-	rts
-:evenR	jsr DrawPipeEven
-	rts
+:oddR	jmp DrawPipeOdd
+:evenR	jmp DrawPipeEven
 :notOver	cmp #16
 	bcs :NOCLIP
 :UNDER			; X = 0-16	
@@ -225,12 +223,10 @@ DrawPipe
 :oddL	dex	; downshift * 1
 	txa	
 	sta PIPE_X_IDX
-	jsr DrawPipeOddL
-	rts
+	jmp DrawPipeOddL
 :evenL	txa
 	sta PIPE_X_IDX
-	jsr DrawPipeEvenL
-	rts
+	jmp DrawPipeEvenL
 
 :NOCLIP	lda PIPE_X_FULL
 	sec 
@@ -238,55 +234,127 @@ DrawPipe
 	lsr
 	sta PIPE_X_IDX
 	bcc :even
-:odd	
-	jsr DrawPipeOdd
-	rts
-:even
-	jsr DrawPipeEven
-	rts
+:odd	jmp DrawPipeOdd
+:even	jmp DrawPipeEven
+DrawPipeDone	rts
 
 
 DrawPipeOddL	
 	jsr SetPipeCapPtrs
-	sta TXTPAGE1
-	ldy PIPE_X_IDX	; y= the x offset... yay dp indexing on 6502
-	ldx #0
-:l1_loop	cpy #PIPE_RCLIP
-	bcs :l1_skip
-	lda PipeSpr_Main,x
+	sta TXTPAGE1	
+	lda PIPE_X_IDX	; y= the x offset... yay dp indexing on 6502
+			; optimized by hand, not perfect, but big help
+	clc
+	adc #PIPE_WIDTH/2
+	pha	;PHA for below loop
+	tay	
+		;col 14 (rightmost)
+	cpy #PIPE_RCLIP
+	bcs :RCLIP
+	lda #$77
 	sta (PIPE_DP),y
-	lda PipeSpr_Main+PIPE_WIDTH,x
 	sta (PIPE_DP2),y
-:l1_skip	iny	; can check this for clipping?
-	inx
-	inx	;\_ skip a col
-	cpx #PIPE_WIDTH
-	bcc :l1_loop
-
-
+	dey	;col 12
+	cpy #PIPE_RCLIP
+	bcs :RCLIP
+	lda #$45
+	sta (PIPE_DP),y
+	lda #$54
+	sta (PIPE_DP2),y
+	dey	;col 10
+	cpy #PIPE_RCLIP
+	bcs :RCLIP
+	lda #$C5
+	sta (PIPE_DP),y
+	lda #$5C
+	sta (PIPE_DP2),y
+	dey	;col 8
+	cpy #PIPE_RCLIP
+	bcs :RCLIP
+	sta (PIPE_DP2),y
+	lda #$C5
+	sta (PIPE_DP),y
+	dey	;col 6
+	cpy #PIPE_RCLIP
+	bcs :RCLIP
+	sta (PIPE_DP),y
+	lda #$5C
+	sta (PIPE_DP2),y
+	dey	;col 4
+	cpy #PIPE_RCLIP
+	bcs :RCLIP
+	lda #$E5
+	sta (PIPE_DP),y
+	lda #$5E
+	sta (PIPE_DP2),y
+	dey	;col 2
+	cpy #PIPE_RCLIP
+	bcs :RCLIP
+	sta (PIPE_DP2),y
+	lda #$E5
+	sta (PIPE_DP),y
+	dey	;col 0 (final! leftmost)
+	cpy #PIPE_RCLIP
+	bcs :RCLIP
+	lda #$55
+	sta (PIPE_DP),y
+	sta (PIPE_DP2),y
+:RCLIP
 	sta TXTPAGE2
-	ldy PIPE_X_IDX
-	iny	;-- pixel after - fun mapping
-	ldx #1
-:l2_loop	cpy #PIPE_RCLIP
-	bcs :l2_skip
-	lda PipeSpr_Aux,x
+	pla
+	tay
+		;col 13
+	cpy #PIPE_RCLIP
+	bcs :RCLIP2
+	lda #$AA
 	sta (PIPE_DP),y
-	lda PipeSpr_Aux+PIPE_WIDTH,x
 	sta (PIPE_DP2),y
-:l2_skip	iny	; can check this for clipping?
-	inx
-	inx	;\_ skip a col
-	cpx #PIPE_WIDTH
-	bcc :l2_loop
+	dey	;col 11
+	cpy #PIPE_RCLIP
+	bcs :RCLIP2
+	lda #$2A
+	sta (PIPE_DP),y
+	lda #$A2
+	sta (PIPE_DP2),y
+	dey	;col 9
+	cpy #PIPE_RCLIP
+	bcs :RCLIP2
+	sta (PIPE_DP2),y
+	lda #$2A
+	sta (PIPE_DP),y
+	dey	;col 7
+	cpy #PIPE_RCLIP
+	bcs :RCLIP2
+	lda #$6A
+	sta (PIPE_DP),y
+	lda #$A6
+	sta (PIPE_DP2),y
+	dey	;col 5
+	cpy #PIPE_RCLIP
+	bcs :RCLIP2
+	sta (PIPE_DP2),y
+	lda #$6A
+	sta (PIPE_DP),y
+	dey	;col 3
+	cpy #PIPE_RCLIP
+	bcs :RCLIP2
+	sta (PIPE_DP),y
+	lda #$A6
+	sta (PIPE_DP2),y
+	dey	;col 1
+	cpy #PIPE_RCLIP
+	bcs :RCLIP2
+	lda #$7A
+	sta (PIPE_DP),y
+	lda #$A7
+	sta (PIPE_DP2),y
+:RCLIP2
 
 *** Handle body 
 	lda PIPE_T_B	; TOP or BOTTOM ?
 	bne :doBottom
-:doTop	jsr DrawPipeOddTL
-	rts
-:doBottom	jsr DrawPipeOddBL
-	rts
+:doTop	jmp DrawPipeOddTL
+:doBottom	jmp DrawPipeOddBL
 
 
 
@@ -400,17 +468,14 @@ DrawPipeEvenL
 	sta (PIPE_DP),y
 	lda #$5E
 	sta (PIPE_DP2),y
-
 :RCLIP2
 
 
 *** Handle body 
 	lda PIPE_T_B	; TOP or BOTTOM ?
 	bne :doBottom
-:doTop	jsr DrawPipeEvenTL
-	rts
-:doBottom	jsr DrawPipeEvenBL
-	rts
+:doTop	jmp DrawPipeEvenTL
+:doBottom	jmp DrawPipeEvenBL
 
 
 DrawPipeOdd	jsr SetPipeCapPtrs
@@ -524,10 +589,8 @@ DrawPipeOdd	jsr SetPipeCapPtrs
 * Handle body 
 	lda PIPE_T_B	; TOP or BOTTOM ?
 	bne :doBottom
-:doTop	jsr DrawPipeOddT
-	rts
-:doBottom	jsr DrawPipeOddB
-	rts
+:doTop	jmp DrawPipeOddT
+:doBottom	jmp DrawPipeOddB
 
 ****************************************
 *** Draw Body - Top Full & Right version
@@ -537,8 +600,7 @@ DrawPipeOddT
 	sta PIPE_Y_IDX	; current line
 	lda PIPE_Y
 	sta PIPE_BODY_BOT
-	jsr DrawPipeBodyOdd
-	rts
+	jmp DrawPipeBodyOdd
 
 *******************************************
 *** Draw Body - Bottom Full & Right version
@@ -552,8 +614,7 @@ DrawPipeOddB
 	sta PIPE_Y_IDX	; current line
 	lda #22
 	sta PIPE_BODY_BOT
-	jsr DrawPipeBodyOdd
-	rts
+	jmp DrawPipeBodyOdd
 
 
 ****************************************
@@ -564,7 +625,6 @@ DrawPipeBodyOdd
 	lsr	; /2
 	cmp PIPE_BODY_BOT
 	bcs :done
-	;ldy PIPE_Y_IDX	; revert to table-lookup form
 
 	lda LoLineTable,y
 	sta PIPE_DP
@@ -609,7 +669,7 @@ DrawPipeBodyOdd
 	jmp :loop
 	;sec
 	;bcs :loop
-:done	rts
+:done	jmp DrawPipeDone
 
 
 ****************************************
@@ -620,8 +680,7 @@ DrawPipeEvenT
 	sta PIPE_Y_IDX	; current line
 	lda PIPE_Y
 	sta PIPE_BODY_BOT
-	jsr DrawPipeBodyEven
-	rts
+	jmp DrawPipeBodyEven
 
 
 *******************************************
@@ -636,8 +695,8 @@ DrawPipeEvenB
 	sta PIPE_Y_IDX	; current line
 	lda #22
 	sta PIPE_BODY_BOT
-	jsr DrawPipeBodyEven
-	rts
+	jmp DrawPipeBodyEven
+	
 
 ************************************
 *** Draw Body - Odd Top Left version
@@ -647,8 +706,7 @@ DrawPipeOddTL
 	sta PIPE_Y_IDX              ; current line
 	lda PIPE_Y
 	sta PIPE_BODY_BOT
-	jsr DrawPipeBodyOddL
-	rts
+	jmp DrawPipeBodyOddL
 
 ****************************************
 *** Draw Body - Top Full & Right version
@@ -658,8 +716,7 @@ DrawPipeEvenTL
 	sta PIPE_Y_IDX	; current line
 	lda PIPE_Y
 	sta PIPE_BODY_BOT
-	jsr DrawPipeBodyEvenL  
-	rts
+	jmp DrawPipeBodyEvenL  
 
 ***************************************
 *** Draw Body - Odd Bottom Left version
@@ -673,8 +730,7 @@ DrawPipeOddBL
 	sta PIPE_Y_IDX	; current line
 	lda #22
 	sta PIPE_BODY_BOT
-	jsr DrawPipeBodyOddL
-	rts
+	jmp DrawPipeBodyOddL
 
 ***************************************
 *** Draw Body - Odd Bottom Left version
@@ -688,8 +744,7 @@ DrawPipeEvenBL
 	sta PIPE_Y_IDX	; current line
 	lda #22
 	sta PIPE_BODY_BOT
-	jsr DrawPipeBodyEvenL
-	rts
+	jmp DrawPipeBodyEvenL
 
 
 DrawPipeEven	jsr SetPipeCapPtrs
@@ -800,10 +855,9 @@ DrawPipeEven	jsr SetPipeCapPtrs
 * Handle body 
 	lda PIPE_T_B	; TOP or BOTTOM ?
 	bne :doBottom
-:doTop	jsr DrawPipeEvenT
-	rts
-:doBottom	jsr DrawPipeEvenB
-	rts
+:doTop	jmp DrawPipeEvenT
+:doBottom	jmp DrawPipeEvenB
+
 
 *****************************************
 *** Draw Body - Even Full & Right version
@@ -855,7 +909,7 @@ DrawPipeBodyEven
 	inc PIPE_Y_IDX
 	jmp :loop
 
-:done	rts
+:done	jmp DrawPipeDone
 
 
 
@@ -904,7 +958,7 @@ DrawPipeBodyEvenL
 	inc PIPE_Y_IDX
 	jmp :loop
 :done
-	rts
+	jmp DrawPipeDone
 
 
 
@@ -954,6 +1008,6 @@ DrawPipeBodyOddL
 	inc PIPE_Y_IDX
 	jmp :loop
 
-:done	rts
+:done	jmp DrawPipeDone
 
 
