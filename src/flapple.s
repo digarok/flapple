@@ -132,84 +132,191 @@ UpdateGrass	inc GrassState
 	bne :noReset
 	lda #0
 	sta GrassState
-:noReset	sta TXTPAGE2
+:noReset	
+	sta TXTPAGE2	
 	ldx GrassState
-	lda GrassTop,x
+	lda GrassTop,x	; top[0]
 	tax
 	lda MainAuxMap,x
-	ldx #0
-:lp1	sta Lo23,x
-	inx
-	inx
-	cpx #40
-	bcc :lp1
+	sta Lo23
+	sta Lo23+2
+	sta Lo23+4
+	sta Lo23+6
+	sta Lo23+8
+	sta Lo23+10
+	sta Lo23+12
+	sta Lo23+14
+	sta Lo23+16
+	sta Lo23+18
+	sta Lo23+20
+	sta Lo23+22
+	sta Lo23+24
+	sta Lo23+26
+	sta Lo23+28
+	sta Lo23+30
+	sta Lo23+32
+	sta Lo23+34
+	sta Lo23+36
+	sta Lo23+38
 	ldx GrassState
-	lda GrassTop+2,x
+	lda GrassBot,x	; Bot[0]
 	tax
 	lda MainAuxMap,x
-	ldx #0
-:lp2	sta Lo23+1,x
-	inx 
-	inx
-	cpx #40
-	bcc :lp2	
+	sta Lo24
+	sta Lo24+2
+	sta Lo24+4
+	sta Lo24+6
+	sta Lo24+8
+	sta Lo24+10
+	sta Lo24+12
+	sta Lo24+14
+	sta Lo24+16
+	sta Lo24+18
+	sta Lo24+20
+	sta Lo24+22
+	sta Lo24+24
+	sta Lo24+26
+	sta Lo24+28
+	sta Lo24+30
+	sta Lo24+32
+	sta Lo24+34
+	sta Lo24+36
+	sta Lo24+38
+	ldx GrassState
+	lda GrassTop+2,x	; top[2]
+	tax
+	lda MainAuxMap,x
+	sta Lo23+1
+	sta Lo23+3
+	sta Lo23+5
+	sta Lo23+7
+	sta Lo23+9
+	sta Lo23+11
+	sta Lo23+13
+	sta Lo23+15
+	sta Lo23+17
+	sta Lo23+19
+	sta Lo23+21
+	sta Lo23+23
+	sta Lo23+25
+	sta Lo23+27
+	sta Lo23+29
+	sta Lo23+31
+	sta Lo23+33
+	sta Lo23+35
+	sta Lo23+37
+	sta Lo23+39
+	ldx GrassState
+	lda GrassBot+2,x	; Bot[2]
+	tax
+	lda MainAuxMap,x
+	sta Lo24+1
+	sta Lo24+3
+	sta Lo24+5
+	sta Lo24+7
+	sta Lo24+9
+	sta Lo24+11
+	sta Lo24+13
+	sta Lo24+15
+	sta Lo24+17
+	sta Lo24+19
+	sta Lo24+21
+	sta Lo24+23
+	sta Lo24+25
+	sta Lo24+27
+	sta Lo24+29
+	sta Lo24+31
+	sta Lo24+33
+	sta Lo24+35
+	sta Lo24+37
+	sta Lo24+39
 
 	sta TXTPAGE1
 	ldx GrassState
-	lda GrassTop+1,x
-	ldx #0
-:lp3	sta Lo23,x
-	inx
-	inx
-	cpx #40
-	bcc :lp3
-	ldx GrassState
-	lda GrassTop+3,x
-	ldx #0
-:lp4	sta Lo23+1,x
-	inx 
-	inx
-	cpx #40
-	bcc :lp4
-:bottom	sta TXTPAGE2
-	ldx GrassState
-	lda GrassBot,x
-	tax
-	lda MainAuxMap,x
-	ldx #0
-:lp5	sta Lo24,x
-	inx
-	inx
-	cpx #40
-	bcc :lp5
-	ldx GrassState
-	lda GrassBot+2,x
-	tax
-	lda MainAuxMap,x
-	ldx #0
-:lp6	sta Lo24+1,x
-	inx 
-	inx
-	cpx #40
-	bcc :lp6	
-
-	sta TXTPAGE1
-	ldx GrassState
-	lda GrassBot+1,x
-	ldx #0
-:lp7	sta Lo24,x
-	inx
-	inx
-	cpx #40
-	bcc :lp7
-	ldx GrassState
-	lda GrassBot+3,x
-	ldx #0
-:lp8	sta Lo24+1,x
-	inx 
-	inx
-	cpx #40
-	bcc :lp8
+	lda GrassTop+1,x	; top[1]
+	sta Lo23
+	sta Lo23+2
+	sta Lo23+4
+	sta Lo23+6
+	sta Lo23+8
+	sta Lo23+10
+	sta Lo23+12
+	sta Lo23+14
+	sta Lo23+16
+	sta Lo23+18
+	sta Lo23+20
+	sta Lo23+22
+	sta Lo23+24
+	sta Lo23+26
+	sta Lo23+28
+	sta Lo23+30
+	sta Lo23+32
+	sta Lo23+34
+	sta Lo23+36
+	sta Lo23+38
+	lda GrassBot+1,x	; Bot[1]
+	sta Lo24
+	sta Lo24+2
+	sta Lo24+4
+	sta Lo24+6
+	sta Lo24+8
+	sta Lo24+10
+	sta Lo24+12
+	sta Lo24+14
+	sta Lo24+16
+	sta Lo24+18
+	sta Lo24+20
+	sta Lo24+22
+	sta Lo24+24
+	sta Lo24+26
+	sta Lo24+28
+	sta Lo24+30
+	sta Lo24+32
+	sta Lo24+34
+	sta Lo24+36
+	sta Lo24+38
+	lda GrassTop+3,x	; top[3]
+	sta Lo23+1
+	sta Lo23+3
+	sta Lo23+5
+	sta Lo23+7
+	sta Lo23+9
+	sta Lo23+11
+	sta Lo23+13
+	sta Lo23+15
+	sta Lo23+17
+	sta Lo23+19
+	sta Lo23+21
+	sta Lo23+23
+	sta Lo23+25
+	sta Lo23+27
+	sta Lo23+29
+	sta Lo23+31
+	sta Lo23+33
+	sta Lo23+35
+	sta Lo23+37
+	sta Lo23+39
+	lda GrassBot+3,x	; bot[3]
+	sta Lo24+1
+	sta Lo24+3
+	sta Lo24+5
+	sta Lo24+7
+	sta Lo24+9
+	sta Lo24+11
+	sta Lo24+13
+	sta Lo24+15
+	sta Lo24+17
+	sta Lo24+19
+	sta Lo24+21
+	sta Lo24+23
+	sta Lo24+25
+	sta Lo24+27
+	sta Lo24+29
+	sta Lo24+31
+	sta Lo24+33
+	sta Lo24+35
+	sta Lo24+37
+	sta Lo24+39
 	jmp UpdateGrassDone
 
 GrassState	db  00
@@ -279,10 +386,21 @@ _vblType	db 0	; 0 - normal, 1 - IIc
 * Wait for vertical blanking interval - IIe/IIgs
 **************************************************
 VBlankNormal
+VBlankGS	lda #$FE
+:vblInProgress	cmp RDVBLBAR
+	bpl :vblInProgress
+:vblWaitForStart	cmp RDVBLBAR
+	bmi :vblWaitForStart
+
+	rts
+
+
+
 :loop1	lda RDVBLBAR
 	bpl :loop1 ; not VBL
+	rts
 :loop	lda $c019
-	bmi :loop ;wait for beginning of VBL interval
+	bpl :loop ;wait for beginning of VBL interval
 	rts
 
 
