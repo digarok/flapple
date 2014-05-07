@@ -10,15 +10,10 @@
 * optimized code, in the sense that it handles
 * the following drawing operations as distinct
 * routines:
-*  DrawPipeOdd   - draw odd aligned pipes
-*  DrawPipeEven  - draw even aligned pipes
-*  DrawPipeOddR  - draw odd aligned pipes / clipped right
-*  DrawPipeEvenR - draw even aligned pipes / clipped right
-*  DrawPipeOddL  - draw odd aligned pipes / clipped right
-*  DrawPipeEvenL - draw even aligned pipes / clipped right
-*
-* YAY ISN'T DLR FUN?
-*		>:(
+*  DrawPipeOdd   - draw odd aligned pipes, full or clipped right
+*  DrawPipeEven  - draw even aligned pipes, full or clipped right
+*  DrawPipeOddL  - draw odd aligned pipes / clipped left
+*  DrawPipeEvenL - draw even aligned pipes / clipped left
 *
 **************************************************
 PipeSpr_Main
@@ -298,34 +293,115 @@ DrawPipeOddL
 DrawPipeEvenL	
 	jsr SetPipeCapPtrs
 	sta TXTPAGE2	
-	ldy PIPE_X_IDX	; y= the x offset... yay dp indexing on 6502
-	ldx #0
-:l1_loop	cpy #PIPE_RCLIP
-	bcs :l1_skip
-	lda PipeSpr_Aux,x
+	lda PIPE_X_IDX	; y= the x offset... yay dp indexing on 6502
+			; optimized by hand, not perfect, but big help
+	clc
+	adc #PIPE_WIDTH/2
+	pha	;PHA for below loop
+	tay	
+		;col 14 (rightmost)
+	cpy #PIPE_RCLIP
+	bcs :RCLIP
+	lda #$BB
 	sta (PIPE_DP),y
-	lda PipeSpr_Aux+PIPE_WIDTH,x
 	sta (PIPE_DP2),y
-:l1_skip	iny	; can check this for clipping?
-	inx
-	inx	;\_ skip a col
-	cpx #PIPE_WIDTH
-	bcc :l1_loop
-
+	dey	;col 12
+	cpy #PIPE_RCLIP
+	bcs :RCLIP
+	lda #$2A
+	sta (PIPE_DP),y
+	lda #$A2
+	sta (PIPE_DP2),y
+	dey	;col 10
+	cpy #PIPE_RCLIP
+	bcs :RCLIP
+	lda #$6A
+	sta (PIPE_DP),y
+	lda #$A6
+	sta (PIPE_DP2),y
+	dey	;col 8
+	cpy #PIPE_RCLIP
+	bcs :RCLIP
+	sta (PIPE_DP2),y
+	lda #$6A
+	sta (PIPE_DP),y
+	dey	;col 6
+	cpy #PIPE_RCLIP
+	bcs :RCLIP
+	sta (PIPE_DP),y
+	lda #$A6
+	sta (PIPE_DP2),y
+	dey	;col 4
+	cpy #PIPE_RCLIP
+	bcs :RCLIP
+	lda #$7A
+	sta (PIPE_DP),y
+	lda #$A7
+	sta (PIPE_DP2),y
+	dey	;col 2
+	cpy #PIPE_RCLIP
+	bcs :RCLIP
+	sta (PIPE_DP2),y
+	lda #$7A
+	sta (PIPE_DP),y
+	dey	;col 0 (final! leftmost)
+	cpy #PIPE_RCLIP
+	bcs :RCLIP
+	lda #$AA
+	sta (PIPE_DP),y
+	sta (PIPE_DP2),y
+:RCLIP
 	sta TXTPAGE1
-	ldy PIPE_X_IDX
-	ldx #1
-:l2_loop	cpy #PIPE_RCLIP
-	bcs :l2_skip
-	lda PipeSpr_Main,x
+	pla
+	tay
+	dey
+		;col 13
+	cpy #PIPE_RCLIP
+	bcs :RCLIP2
+	lda #$55
 	sta (PIPE_DP),y
-	lda PipeSpr_Main+PIPE_WIDTH,x
 	sta (PIPE_DP2),y
-:l2_skip	iny	; can check this for clipping?
-	inx
-	inx	;\_ skip a col
-	cpx #PIPE_WIDTH
-	bcc :l2_loop
+	dey	;col 11
+	cpy #PIPE_RCLIP
+	bcs :RCLIP2
+	lda #$45
+	sta (PIPE_DP),y
+	lda #$54
+	sta (PIPE_DP2),y
+	dey	;col 9
+	cpy #PIPE_RCLIP
+	bcs :RCLIP2
+	sta (PIPE_DP2),y
+	lda #$45
+	sta (PIPE_DP),y
+	dey	;col 7
+	cpy #PIPE_RCLIP
+	bcs :RCLIP2
+	lda #$C5
+	sta (PIPE_DP),y
+	lda #$5C
+	sta (PIPE_DP2),y
+	dey	;col 5
+	cpy #PIPE_RCLIP
+	bcs :RCLIP2
+	sta (PIPE_DP2),y
+	lda #$C5
+	sta (PIPE_DP),y
+	dey	;col 3
+	cpy #PIPE_RCLIP
+	bcs :RCLIP2
+	sta (PIPE_DP),y
+	lda #$5C
+	sta (PIPE_DP2),y
+	dey	;col 1
+	cpy #PIPE_RCLIP
+	bcs :RCLIP2
+	lda #$E5
+	sta (PIPE_DP),y
+	lda #$5E
+	sta (PIPE_DP2),y
+
+:RCLIP2
 
 
 *** Handle body 
