@@ -76,9 +76,10 @@ DD_EVEN	lda #0
 	sta SPRITE_SCREEN_IDX
 	sta TXTPAGE2
 	
-:lineLoop	ldy SPRITE_X_IDX	; 
-	lda (SPRITE_IMASK_P),y
-	beq :noPixel
+:lineLoop	
+	;ldy SPRITE_X_IDX	; 
+	;lda (SPRITE_IMASK_P),y
+	;beq :noPixel
 
 :collisionCheckDrawer
 	ldy SPRITE_SCREEN_IDX	; GET SCREEN PIXELS
@@ -122,9 +123,9 @@ DD_ODD
 	sta SPRITE_SCREEN_IDX
 	sta TXTPAGE1
 	
-:lineLoop	ldy SPRITE_X_IDX	; 
-	lda (SPRITE_IMASK_P),y
-	beq :noPixel
+:lineLoop	;ldy SPRITE_X_IDX	; 
+	;lda (SPRITE_IMASK_P),y
+	;beq :noPixel
 
 :collisionCheckDrawer
 	ldy SPRITE_SCREEN_IDX	; GET SCREEN PIXELS
