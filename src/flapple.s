@@ -31,6 +31,13 @@ Main
 	lda #$77
 	jsr DL_Clear
 
+** taken from DrawBird
+** these don't really change so saving some cycles
+	lda BIRD_X
+	sta SPRITE_X
+	lda #5
+	sta SPRITE_W	; all birds are same width
+
 
 GameLoop	
 	; handle input
@@ -42,20 +49,32 @@ GameLoop
 	; update score
 
 	jsr VBlank
-	jmp UndrawBird
-UndrawBirdDone
+	lda #3
+	sta $c034
 	jmp UpdatePipes
 UpdatePipesDone
+	jsr FlapBird
+	jmp UpdateGrass
+UpdateGrassDone
+	lda #4
+	sta $c034
+	jmp UndrawBird
+UndrawBirdDone
+	lda #5
+	sta $c034
+	jmp DrawPipes
+DrawPipesDone
+	lda #6
+	sta $c034
 	jmp HandleInput
 HandleInputDone
 	jmp DrawBird
 DrawBirdDone
+	lda #7
+	sta $c034
 	jmp DrawScore
 DrawScoreDone
-	jmp UpdateGrass
-UpdateGrassDone
 
-	jsr FlapBird
 	;jsr WaitKey
 	lda QuitFlag
 	beq GameLoop
@@ -385,12 +404,18 @@ _vblType	db 0	; 0 - normal, 1 - IIc
 * Wait for vertical blanking interval - IIe/IIgs
 **************************************************
 VBlankNormal
-VBlankGS	lda #$FE
+VBlankGS	lda #0
+	sta $c034
+	lda #$FE
 :vblInProgress	cmp RDVBLBAR
-	bpl :vblInProgress
+	bmi :vblInProgress
+	lda #1
+	sta $c034
+	lda #$FE
 :vblWaitForStart	cmp RDVBLBAR
-	bmi :vblWaitForStart
-
+	bpl :vblWaitForStart
+	lda #2
+	sta $c034
 	rts
 
 

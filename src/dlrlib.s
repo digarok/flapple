@@ -99,6 +99,18 @@ LoLineTable	da Lo01,Lo02,Lo03,Lo04,Lo05,Lo06
 	da Lo07,Lo08,Lo09,Lo10,Lo11,Lo12
 	da Lo13,Lo14,Lo15,Lo16,Lo17,Lo18
 	da Lo19,Lo20,Lo21,Lo22,Lo23,Lo24
+** Here we split the table for an optimization
+** We can directly get our line numbers now
+** Without using ASL
+LoLineTableH	db >Lo01,>Lo02,>Lo03,>Lo04,>Lo05,>Lo06
+	db >Lo07,>Lo08,>Lo09,>Lo10,>Lo11,>Lo12
+	db >Lo13,>Lo14,>Lo15,>Lo16,>Lo17,>Lo18
+	db >Lo19,>Lo20,>Lo21,>Lo22,>Lo23,>Lo24
+LoLineTableL	db <Lo01,<Lo02,<Lo03,<Lo04,<Lo05,<Lo06
+	db <Lo07,<Lo08,<Lo09,<Lo10,<Lo11,<Lo12
+	db <Lo13,<Lo14,<Lo15,<Lo16,<Lo17,<Lo18
+	db <Lo19,<Lo20,<Lo21,<Lo22,<Lo23,<Lo24
+
 MainAuxMap
 	hex 00,08,01,09,02,0A,03,0B,04,0C,05,0D,06,0E,07,0F
 	hex 80,88,81,89,82,8A,83,8B,84,8C,85,8D,86,8E,87,8F

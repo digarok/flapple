@@ -140,20 +140,17 @@ UndrawBird	lda BIRD_Y
 :continue	ldx BIRD_X
 	cmp #4
 	beq :undraw4
-:undraw3	tya	; we don't need height anymore, trash it	
-	asl
-	tay
-	lda LoLineTable,y
+:undraw3	lda LoLineTableL,y
 	sta SPRITE_SCREEN_P
-	lda LoLineTable+1,y
+	lda LoLineTableH,y
 	sta SPRITE_SCREEN_P+1
-	lda LoLineTable+2,y
+	lda LoLineTableL+1,y
 	sta SPRITE_SCREEN_P2
-	lda LoLineTable+3,y
+	lda LoLineTableH+1,y
 	sta SPRITE_SCREEN_P2+1
-	lda LoLineTable+4,y
+	lda LoLineTableL+2,y
 	sta SPRITE_SCREEN_P3
-	lda LoLineTable+5,y
+	lda LoLineTableH+2,y
 	sta SPRITE_SCREEN_P3+1
 
 	txa 
@@ -183,24 +180,21 @@ UndrawBird	lda BIRD_Y
 
 
 
-:undraw4	tya	; we don't need height anymore, trash it	
-	asl
-	tay
-	lda LoLineTable,y
+:undraw4	lda LoLineTableL,y
 	sta SPRITE_SCREEN_P
-	lda LoLineTable+1,y
+	lda LoLineTableH,y
 	sta SPRITE_SCREEN_P+1
-	lda LoLineTable+2,y
+	lda LoLineTableL+1,y
 	sta SPRITE_SCREEN_P2
-	lda LoLineTable+3,y
+	lda LoLineTableH+1,y
 	sta SPRITE_SCREEN_P2+1
-	lda LoLineTable+4,y
+	lda LoLineTableL+2,y
 	sta SPRITE_SCREEN_P3
-	lda LoLineTable+5,y
+	lda LoLineTableH+2,y
 	sta SPRITE_SCREEN_P3+1
-	lda LoLineTable+6,y
+	lda LoLineTableL+3,y
 	sta SPRITE_SCREEN_P4
-	lda LoLineTable+7,y
+	lda LoLineTableH+3,y
 	sta SPRITE_SCREEN_P4+1
 
 	txa 
@@ -231,11 +225,6 @@ UndrawBird	lda BIRD_Y
 	jmp UndrawBirdDone
 
 DrawBird
-	lda BIRD_X
-	sta SPRITE_X
-	lda #5
-	sta SPRITE_W	; all birds are same width
-
 	lda BIRD_Y
 	lsr
 	bcs :oddHeight

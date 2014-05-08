@@ -93,7 +93,7 @@ DD_EVEN	lda #0
 	beq :noCollision
 	cmp #$0B
 	beq :noCollision
-	lda #1
+	lda #9
 	sta SPRITE_COLLISION
 	sta $c034
 
@@ -139,7 +139,7 @@ DD_ODD
 	beq :noCollision
 	cmp #$07
 	beq :noCollision
-	lda #1
+	lda #9
 	sta SPRITE_COLLISION
 	sta $c034
 

@@ -16,27 +16,28 @@
 *  DrawPipeEvenL - draw even aligned pipes / clipped left
 *
 **************************************************
-PipeSpr_Main
-	hex 55,e5,e5,c5,e5,c5,c5,c5,c5,45,c5,45,45,55,77
-	hex 55,5e,5e,5c,5e,5c,5c,5c,5c,54,5c,54,54,55,77
-	hex 77,55,ee,ee,cc,ee,cc,cc,44,cc,44,44,55,77,77
+
+** DEPRECATED, but this is the "linear" format
+*PipeSpr_Main	hex 55,e5,e5,c5,e5,c5,c5,c5,c5,45,c5,45,45,55,77
+*	hex 55,5e,5e,5c,5e,5c,5c,5c,5c,54,5c,54,54,55,77
+*	hex 77,55,ee,ee,cc,ee,cc,cc,44,cc,44,44,55,77,77
 	
+*PipeSpr_Aux	hex aa,7a,7a,6a,7a,6a,6a,6a,6a,2a,6a,2a,2a,aa,bb
+*	hex aa,a7,a7,a6,a7,a6,a6,a6,a6,a2,a6,a2,a2,aa,bb
+*	hex bb,aa,77,77,66,77,66,66,22,66,22,22,aa,bb,bb
+
+** "interleave" format
 PipeBody_Main_E hex 55,ee,ee,cc,cc,44,77
 PipeBody_Main_O hex 77,ee,cc,cc,44,44,55,77
-
-PipeSpr_Aux
-	hex aa,7a,7a,6a,7a,6a,6a,6a,6a,2a,6a,2a,2a,aa,bb
-	hex aa,a7,a7,a6,a7,a6,a6,a6,a6,a2,a6,a2,a2,aa,bb
-	hex bb,aa,77,77,66,77,66,66,22,66,22,22,aa,bb,bb
 PipeBody_Aux_E hex bb,77,66,66,22,22,aa,bb
 PipeBody_Aux_O hex aa,77,77,66,66,22,bb
 
-PipeInterval	equ #60	; game ticks to spawn new pipe
-PipeSpawn	db 0	; our counter
+PipeInterval	equ #65	; game ticks to spawn new pipe
+PipeSpawn	db #45	; our counter, starting point for spawning
 PipeSpawnSema db 0	; points to next spot (even if currently unavailable)
 MaxPipes	equ 2
-TopPipes	hex 00,00,00,00
-BotPipes	hex 00,00,00,00
+TopPipes	ds MaxPipes*2	; Space for pipe X,Y
+BotPipes	ds MaxPipes*2	; "
 BotPipeMin	equ 3
 BotPipeMax    equ 8
 
@@ -59,10 +60,9 @@ PIPE_EVEN_ODD db 0	; 0=even, Y=odd
 PIPE_TOP	equ 0	; enum for top pipe type
 PIPE_BOT	equ 1	; enum for bottom pipe type
 
-
-PipeXScore    equ 50
-ScoreLo	db 0
-ScoreHi	db 0
+PipeXScore    equ 50	; pipe at this value causes score increase
+ScoreLo	db 0	; 0-99
+ScoreHi	db 0	; hundreds, not shown on screen
 
 * pipe min  =  15x6 pixels  =  15x3 bytes
 * playfield =  80x48 pixels =  80x24 bytes
@@ -79,9 +79,30 @@ UpdatePipes	inc PipeSpawn
 	lda #0
 	sta PipeSpawn
 :noSpawn	
-MoveDrawPipes	
-	jsr MovePipes
-	jsr DrawPipes
+
+MovePipes
+	ldx #2	;MaxPipes*2?
+:loop	lda BotPipes,x
+	beq :noPipe
+	dec BotPipes,x
+	dec TopPipes,x
+	cmp #PipeXScore+1	; A should still be set
+	bne :noScore
+:ScoreUp	sed
+	lda ScoreLo
+	clc
+	adc #1
+	sta ScoreLo
+	bcc :noFlip
+	lda ScoreHi
+	adc #0
+	sta ScoreHi
+:noFlip	cld
+
+:noScore
+:noPipe	dex
+	dex
+	bpl :loop
 	jmp UpdatePipesDone
 	
 
@@ -107,69 +128,43 @@ SpawnPipe	lda PipeSpawnSema
 :done	rts
 
 
-MovePipes
-	ldx #2	;MaxPipes*2?
-:loop	lda BotPipes,x
-	beq :noPipe
-	dec BotPipes,x
-	dec TopPipes,x
-	cmp #PipeXScore+1	; A should still be set
-	bne :noScore
-:ScoreUp	sed
-	lda ScoreLo
-	clc
-	adc #1
-	sta ScoreLo
-	bcc :noFlip
-	lda ScoreHi
-	adc #0
-	sta ScoreHi
-:noFlip	cld
-
-:noScore
-:noPipe	dex
-	dex
-	bpl :loop
-	rts
 
 
-DrawPipes	
-	lda BotPipes	;BotPipes[0]
-	beq :noP1
-	sta PIPE_X_FULL
-	ldx #PIPE_BOT
-	stx PIPE_T_B
-	ldy BotPipes+1
-	sty PIPE_Y
-	jsr DrawPipe
+DrawPipes
+	lda #PIPE_TOP	; =0
+	sta PIPE_T_B
 
 	lda TopPipes	;TopPipes[0]
+	beq :noTP0
 	sta PIPE_X_FULL
-	ldx #PIPE_TOP
-	stx PIPE_T_B
 	ldy TopPipes+1
 	sty PIPE_Y
 	jsr DrawPipe
-:noP1
-	lda BotPipes+2	;BotPipes[1]
-	beq :noP2
-	ldx #PIPE_BOT
-	stx PIPE_T_B
-	sta PIPE_X_FULL
-	ldy BotPipes+3
-	sty PIPE_Y
-	jsr DrawPipe
-
-
-	ldx #PIPE_TOP
-	stx PIPE_T_B
-	lda TopPipes+2
+:noTP0
+	lda TopPipes+2 ;TopPipes[0]
+	beq :noTP1
 	sta PIPE_X_FULL
 	ldy TopPipes+3
 	sty PIPE_Y
 	jsr DrawPipe
-:noP2	
-	rts
+:noTP1
+	inc PIPE_T_B	; =1 now (see above)
+
+	lda BotPipes	;BotPipes[0]
+	beq :noBP0
+	sta PIPE_X_FULL
+	ldy BotPipes+1
+	sty PIPE_Y
+	jsr DrawPipe
+:noBP0
+	lda BotPipes+2	;BotPipes[1]
+	beq :noBP1
+	sta PIPE_X_FULL
+	ldy BotPipes+3
+	sty PIPE_Y
+	jsr DrawPipe
+:noBP1
+	jmp DrawPipesDone
 
 
 * Used by all of the routines that draw the pipe caps
