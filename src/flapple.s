@@ -49,13 +49,6 @@ GameLoop
 	; update score
 
 	jsr VBlank
-	lda #3
-	sta $c034
-	jmp UpdatePipes
-UpdatePipesDone
-	jsr FlapBird
-	jmp UpdateGrass
-UpdateGrassDone
 	lda #4
 	sta $c034
 	jmp UndrawBird
@@ -74,6 +67,11 @@ DrawBirdDone
 	sta $c034
 	jmp DrawScore
 DrawScoreDone
+	jmp UpdatePipes
+UpdatePipesDone
+	jsr FlapBird
+	jmp UpdateGrass
+UpdateGrassDone
 
 	;jsr WaitKey
 	lda QuitFlag
@@ -404,6 +402,15 @@ _vblType	db 0	; 0 - normal, 1 - IIc
 * Wait for vertical blanking interval - IIe/IIgs
 **************************************************
 VBlankNormal
+VBlankGS2	
+	lda #0	; Wait for VBL to start
+	sta $c034
+	lda #$FE
+:vblInProgress	cmp RDVBLBAR
+	bmi :vblInProgress
+	rts
+
+
 VBlankGS	lda #0
 	sta $c034
 	lda #$FE
