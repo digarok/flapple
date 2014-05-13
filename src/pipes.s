@@ -32,7 +32,7 @@ PipeBody_Main_O hex 77,ee,cc,cc,44,44,55,77
 PipeBody_Aux_E hex bb,77,66,66,22,22,aa,bb
 PipeBody_Aux_O hex aa,77,77,66,66,22,bb
 
-PipeInterval	equ #65	; game ticks to spawn new pipe
+PipeInterval	equ #75	; game ticks to spawn new pipe
 PipeSpawn	db #45	; our counter, starting point for spawning
 PipeSpawnSema db 0	; points to next spot (even if currently unavailable)
 MaxPipes	equ 2
@@ -183,7 +183,6 @@ SetPipeCapPtrs
 
 * A=x Y=(byte)y X=pipe top/bottom
 DrawPipe
-	
 	lda PIPE_Y
 	asl	; *2
 	sta PIPE_Y_IDX
@@ -241,7 +240,7 @@ DrawPipeOddL
 			; optimized by hand, not perfect, but big help
 	clc
 	adc #PIPE_WIDTH/2
-	pha	;PHA for below loop
+	tax	;stash for below loop
 	tay	
 		;col 14 (rightmost)
 	cpy #PIPE_RCLIP
@@ -296,7 +295,7 @@ DrawPipeOddL
 	sta (PIPE_DP2),y
 :RCLIP
 	sta TXTPAGE2
-	pla
+	txa
 	tay
 		;col 13
 	cpy #PIPE_RCLIP
@@ -349,8 +348,9 @@ DrawPipeOddL
 	lda PIPE_T_B	; TOP or BOTTOM ?
 	bne :doBottom
 :doTop	
-	lda #0
-	sta PIPE_BODY_TOP
+	;lda #0
+		
+	sta PIPE_BODY_TOP	; 0 from above
 	sta PIPE_Y_IDX              ; current line
 	lda PIPE_Y
 	sta PIPE_BODY_BOT
@@ -376,7 +376,7 @@ DrawPipeEvenL
 			; optimized by hand, not perfect, but big help
 	clc
 	adc #PIPE_WIDTH/2
-	pha	;PHA for below loop
+	tax	;stash for below loop
 	tay	
 		;col 14 (rightmost)
 	cpy #PIPE_RCLIP
@@ -431,7 +431,7 @@ DrawPipeEvenL
 	sta (PIPE_DP2),y
 :RCLIP
 	sta TXTPAGE1
-	pla
+	txa
 	tay
 	dey
 		;col 13
@@ -737,20 +737,6 @@ DrawPipeOddR	jsr SetPipeCapPtrs
 
 
 
-
-
-
-
-	
-
-
-
-
-
-
-
-
-
 DrawPipeEven	jsr SetPipeCapPtrs
 	sta TXTPAGE2
 	ldy PIPE_X_IDX	; y= the x offset... yay dp indexing on 6502
@@ -1019,8 +1005,8 @@ DrawPipeBodyEven
 	sta TXTPAGE2
 *** Version 3 - FULL OPTIMIZATION
 	ldy PIPE_X_IDX
-	lda #$BB	; PipeBody_Aux_E
-	sta (PIPE_DP),y
+	;lda #$BB	; PipeBody_Aux_E
+	;sta (PIPE_DP),y
 	iny
 	lda #$77
 	sta (PIPE_DP),y
@@ -1165,8 +1151,8 @@ DrawPipeBodyOdd
 	sta TXTPAGE1
 *** Version 3 - FULL OPTIMIZATION
 	ldy PIPE_X_IDX
-	lda #$77	; PipeBody_Main_O
-	sta (PIPE_DP),y
+	;lda #$77	; PipeBody_Main_O
+	;sta (PIPE_DP),y
 	iny
 	lda #$EE
 	sta (PIPE_DP),y
@@ -1240,8 +1226,9 @@ DrawPipeBodyOddR
 	clc
 	adc #PIPE_WIDTH/2
 	pha	;PHA for below loop
-	tay	
-	ldx #PIPE_WIDTH/2
+	tay	;\_ skip col 0 (bg color)
+	iny	;/
+	ldx #PIPE_WIDTH/2+1
 :oddLoop	cpy #PIPE_RCLIP
 	bcs :oddBreak
 	lda PipeBody_Main_O,x

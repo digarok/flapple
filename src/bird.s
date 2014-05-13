@@ -1,5 +1,36 @@
-BIRD_X	db #17	; (0-79)
+
+SPRITE_X	db 0
+SPRITE_Y	db 0	; BYTE,not pixel. gotta be, sorry
+SPRITE_W	db 0
+SPRITE_W_D2	db 0
+SPRITE_H	db 0	; <- in bytes
+
+SPRITE_MAIN	da 0
+SPRITE_AUX	da 0
+SPRITE_MASK   da 0
+SPRITE_IMASK  da 0
+SPRITE_COLLISION db 0
+SPRITE_Y_IDX	dw 0
+SPRITE_X_IDX  dw 0
+
+SPRITE_SCREEN_P equz $00
+SPRITE_DATA_P equz $02
+SPRITE_SCREEN_P2 equz $02
+SPRITE_AUX_P	equz $04
+SPRITE_SCREEN_P3 equz $04
+SPRITE_MASK_P equz $FA
+SPRITE_SCREEN_P4 equz $FA
+SPRITE_IMASK_P equz $FC
+
+SPRITE_SCREEN_IDX db #$0
+AUX_BG_COLOR	db #$BB
+MAIN_BG_COLOR	db #$77
+
+
+*#BIRD_X	db #17	; (0-79)
+BIRD_X	equ #17
 BIRD_Y	db #17	; (0-47)
+BIRD_Y_OLD	db #17	; used for undraw - to decouple input routine from sequence
 BIRD_FLAP	db #0	; 0=down 1=up
 BIRD_FLAP_RATE equ #3
 BIRD_FLAP_CNT	db 0
@@ -9,7 +40,7 @@ FlapBird
 	lda BIRD_FLAP_CNT
 	cmp #BIRD_FLAP_RATE
 	bcs :flapIt
-	rts
+	jmp FlapBirdDone
 :flapIt	
 	lda #0
 	sta BIRD_FLAP_CNT
@@ -20,124 +51,97 @@ FlapBird
 	lda #0
 	sta BIRD_FLAP
 :noFlip
-	rts
+	jmp FlapBirdDone
 
-*** "Even" / base sprites
-	ds \
-BIRD_WDN_MAIN
- hex 00,50,D5,D5,D5,A5,FF,0F,F0,00
- hex 55,DD,DD,5D,DD,8A,9F,90,9F,90
- hex A8,5D,5D,55,58,51,01,01,01,00
-
-
-BIRD_WDN_AUX
- hex 00,A0,EA,EA,EA,5A,FF,0F,F0,00
- hex AA,EE,EE,AE,EE,45,CF,C0,CF,C0
- hex 54,AE,AE,AA,A4,A8,08,08,08,00
+***** EVEN then ODD, i.e. AUX then MAIN
+BIRD_WUP_E_PIXEL
+	hex BB,EA,EA,FF,FB,57,D5,A5,0F,77
+	hex AA,EA,EE,CF,CF,D5,55,8A,90,97
+	hex B5,AD,A4,B8,B8,75,5D,51,71,77
 
 
-BIRD_WDN_MASK
- hex FF,0F,00,00,00,00,00,00,0F,FF
- hex 00,00,00,00,00,00,00,00,00,0F
- hex 00,00,00,00,00,00,F0,F0,F0,FF
+BIRD_WUP_E_MASK
+	hex FF,00,00,00,0F,0F,00,00,00,FF
+	hex 00,00,00,00,00,00,00,00,00,0F
+	hex F0,00,00,F0,F0,F0,00,00,F0,FF
 
 
-BIRD_WDN_IMASK
- hex 00,F0,FF,FF,FF,FF,FF,FF,F0,00
- hex FF,FF,FF,FF,FF,FF,FF,FF,FF,F0
- hex FF,FF,FF,FF,FF,FF,0F,0F,0F,00
+BIRD_WUP_E_IMASK
+	hex 00,FF,FF,FF,F0,F0,FF,FF,FF,00
+	hex FF,FF,FF,FF,FF,FF,FF,FF,FF,F0
+	hex 0F,FF,FF,0F,0F,0F,FF,FF,0F,00
+
+***** EVEN then ODD, i.e. AUX then MAIN
+BIRD_WDN_E_PIXEL
+	 hex BB,EA,EA,FF,FB,57,D5,A5,0F,77
+	 hex AA,EE,EE,CF,CF,DD,5D,8A,90,97
+	 hex 54,AE,A4,B8,B8,5D,55,51,71,77
 
 
-BIRD_WUP_MAIN
- hex 00,50,D5,D5,D5,A5,FF,0F,F0,00
- hex 55,D5,D5,55,DD,8A,9F,90,9F,90
- hex 0A,05,5B,5D,58,51,01,01,01,00
-
-	ds \
-BIRD_WUP_AUX
- hex 00,A0,EA,EA,EA,5A,FF,0F,F0,00
- hex AA,EA,EA,AA,EE,45,CF,C0,CF,C0
- hex 05,0A,AD,AE,A4,A8,08,08,08,00
+BIRD_WDN_E_MASK
+	 hex FF,00,00,00,0F,0F,00,00,00,FF
+	 hex 00,00,00,00,00,00,00,00,00,0F
+	 hex 00,00,00,F0,F0,00,00,00,F0,FF
 
 
-BIRD_WUP_MASK
- hex FF,0F,00,00,00,00,00,00,0F,FF
- hex 00,00,00,00,00,00,00,00,00,0F
- hex F0,F0,00,00,00,00,F0,F0,F0,FF
+BIRD_WDN_E_IMASK
+	 hex 00,FF,FF,FF,F0,F0,FF,FF,FF,00
+	 hex FF,FF,FF,FF,FF,FF,FF,FF,FF,F0
+	 hex FF,FF,FF,0F,0F,FF,FF,FF,0F,00
 
-
-BIRD_WUP_IMASK
- hex 00,F0,FF,FF,FF,FF,FF,FF,F0,00
- hex FF,FF,FF,FF,FF,FF,FF,FF,FF,F0
- hex 0F,0F,FF,FF,FF,FF,0F,0F,0F,00
-
-
-
-*** "Odd" / shifted sprites
-BIRD_WDN_O_MAIN
- hex 00,00,50,50,50,50,F0,F0,00,00
- hex 50,D5,DD,DD,DD,AA,FF,00,FF,00
- hex 85,DD,DD,55,8D,18,19,19,19,09
- hex 0A,05,05,05,05,05,00,00,00,00
-
-
-BIRD_WDN_O_AUX
- hex 00,00,A0,A0,A0,A0,F0,F0,00,00
- hex A0,EA,EE,EE,EE,55,FF,00,FF,00
- hex 4A,EE,EE,AA,4E,84,8C,8C,8C,0C
- hex 05,0A,0A,0A,0A,0A,00,00,00,00
-
-
-BIRD_WDN_O_MASK
- hex FF,FF,0F,0F,0F,0F,0F,0F,FF,FF
- hex 0F,00,00,00,00,00,00,00,00,FF
- hex 00,00,00,00,00,00,00,00,00,F0
- hex F0,F0,F0,F0,F0,F0,FF,FF,FF,FF
-
-
-BIRD_WDN_O_IMASK
- hex 00,00,F0,F0,F0,F0,F0,F0,00,00
- hex F0,FF,FF,FF,FF,FF,FF,FF,FF,00
- hex FF,FF,FF,FF,FF,FF,FF,FF,FF,0F
- hex 0F,0F,0F,0F,0F,0F,00,00,00,00
-
-BIRD_WUP_O_MAIN
- hex 00,00,50,50,50,50,F0,F0,00,00
- hex 50,55,5D,5D,DD,AA,FF,00,FF,00
- hex A5,5D,BD,D5,8D,18,19,19,19,09
- hex 00,00,05,05,05,05,00,00,00,00
-
-
-BIRD_WUP_O_AUX
- hex 00,00,A0,A0,A0,A0,F0,F0,00,00
- hex A0,AA,AE,AE,EE,55,FF,00,FF,00
- hex 5A,AE,DE,EA,4E,84,8C,8C,8C,0C
- hex 00,00,0A,0A,0A,0A,00,00,00,00
+	
+***** EVEN then ODD, i.e. AUX then MAIN
+BIRD_WUP_O_PIXEL
+	 hex BB,AB,AB,FB,BB,77,57,57,F7,77
+	 hex AB,AE,EE,FF,FF,55,5D,AA,00,77
+	 hex 5A,DE,4E,8C,8C,5D,D5,18,19,79
+	 hex BB,BA,BA,BB,BB,77,75,75,77,77
 
 
 BIRD_WUP_O_MASK
- hex FF,FF,0F,0F,0F,0F,0F,0F,FF,FF
- hex 0F,00,00,00,00,00,00,00,00,FF
- hex 00,00,00,00,00,00,00,00,00,F0
- hex FF,FF,F0,F0,F0,F0,FF,FF,FF,FF
+	 hex FF,0F,0F,0F,FF,FF,0F,0F,0F,FF
+	 hex 0F,00,00,00,00,00,00,00,00,FF
+	 hex 00,00,00,00,00,00,00,00,00,F0
+	 hex FF,F0,F0,FF,FF,FF,F0,F0,FF,FF
 
 
 BIRD_WUP_O_IMASK
- hex 00,00,F0,F0,F0,F0,F0,F0,00,00
- hex F0,FF,FF,FF,FF,FF,FF,FF,FF,00
- hex FF,FF,FF,FF,FF,FF,FF,FF,FF,0F
- hex 00,00,0F,0F,0F,0F,00,00,00,00
+	 hex 00,F0,F0,F0,00,00,F0,F0,F0,00
+	 hex F0,FF,FF,FF,FF,FF,FF,FF,FF,00
+	 hex FF,FF,FF,FF,FF,FF,FF,FF,FF,0F
+	 hex 00,0F,0F,00,00,00,0F,0F,00,00
 
+
+***** EVEN then ODD, i.e. AUX then MAIN
+BIRD_WDN_O_PIXEL
+	 hex BB,AB,AB,FB,BB,77,57,57,F7,77
+	 hex AB,EE,EE,FF,FF,D5,DD,AA,00,77
+	 hex 4A,EE,4E,8C,8C,DD,55,18,19,79
+	 hex B5,BA,BA,BB,BB,75,75,75,77,77
+
+
+BIRD_WDN_O_MASK
+	 hex FF,0F,0F,0F,FF,FF,0F,0F,0F,FF
+	 hex 0F,00,00,00,00,00,00,00,00,FF
+	 hex 00,00,00,00,00,00,00,00,00,F0
+	 hex F0,F0,F0,FF,FF,F0,F0,F0,FF,FF
+
+
+BIRD_WDN_O_IMASK
+	 hex 00,F0,F0,F0,00,00,F0,F0,F0,00
+	 hex F0,FF,FF,FF,FF,FF,FF,FF,FF,00
+	 hex FF,FF,FF,FF,FF,FF,FF,FF,FF,0F
+	 hex 0F,0F,0F,00,00,0F,0F,0F,00,00
 
 ** y=line   a=height  x=col
-UndrawBird	lda BIRD_Y
+UndrawBird	lda BIRD_Y_OLD
 	lsr
 	tay
 	bne :oddBird
 :evenBird	lda #3
 	bne :continue
 :oddBird	lda #4
-:continue	ldx BIRD_X
+:continue	ldx #BIRD_X
 	cmp #4
 	beq :undraw4
 :undraw3	lda LoLineTableL,y
@@ -156,26 +160,53 @@ UndrawBird	lda BIRD_Y
 	txa 
 	pha	; stash
 	tay	; COL offset
-	ldx #5	; TERMINATOR index
 	sta TXTPAGE2
 	lda #$BB
 :wipe1	sta (SPRITE_SCREEN_P),y
 	sta (SPRITE_SCREEN_P2),y
 	sta (SPRITE_SCREEN_P3),y
 	iny
-	dex
-	bne :wipe1
+:wipe1b	sta (SPRITE_SCREEN_P),y
+	sta (SPRITE_SCREEN_P2),y
+	sta (SPRITE_SCREEN_P3),y
+	iny
+:wipe1c	sta (SPRITE_SCREEN_P),y
+	sta (SPRITE_SCREEN_P2),y
+	sta (SPRITE_SCREEN_P3),y
+	iny
+:wipe1d	sta (SPRITE_SCREEN_P),y
+	sta (SPRITE_SCREEN_P2),y
+	sta (SPRITE_SCREEN_P3),y
+	iny
+:wipe1e	sta (SPRITE_SCREEN_P),y
+	sta (SPRITE_SCREEN_P2),y
+	sta (SPRITE_SCREEN_P3),y
+
 	pla	; unstash
 	tay
-	ldx #5
 	sta TXTPAGE1
 	lda #$77
 :wipe2	sta (SPRITE_SCREEN_P),y
 	sta (SPRITE_SCREEN_P2),y
 	sta (SPRITE_SCREEN_P3),y
 	iny
-	dex
-	bne :wipe2
+
+:wipe2b	sta (SPRITE_SCREEN_P),y
+	sta (SPRITE_SCREEN_P2),y
+	sta (SPRITE_SCREEN_P3),y
+	iny
+:wipe2c	sta (SPRITE_SCREEN_P),y
+	sta (SPRITE_SCREEN_P2),y
+	sta (SPRITE_SCREEN_P3),y
+	iny
+:wipe2d	sta (SPRITE_SCREEN_P),y
+	sta (SPRITE_SCREEN_P2),y
+	sta (SPRITE_SCREEN_P3),y
+	iny
+:wipe2e	sta (SPRITE_SCREEN_P),y
+	sta (SPRITE_SCREEN_P2),y
+	sta (SPRITE_SCREEN_P3),y
+
 	jmp UndrawBirdDone
 
 
@@ -200,7 +231,6 @@ UndrawBird	lda BIRD_Y
 	txa 
 	pha	; stash
 	tay	; COL offset
-	ldx #5	; TERMINATOR index
 	sta TXTPAGE2
 	lda #$BB
 :wipe3	sta (SPRITE_SCREEN_P),y
@@ -208,11 +238,28 @@ UndrawBird	lda BIRD_Y
 	sta (SPRITE_SCREEN_P3),y
 	sta (SPRITE_SCREEN_P4),y
 	iny
-	dex
-	bne :wipe3
+:wipe3b	sta (SPRITE_SCREEN_P),y
+	sta (SPRITE_SCREEN_P2),y
+	sta (SPRITE_SCREEN_P3),y
+	sta (SPRITE_SCREEN_P4),y
+	iny
+:wipe3c	sta (SPRITE_SCREEN_P),y
+	sta (SPRITE_SCREEN_P2),y
+	sta (SPRITE_SCREEN_P3),y
+	sta (SPRITE_SCREEN_P4),y
+	iny
+:wipe3d	sta (SPRITE_SCREEN_P),y
+	sta (SPRITE_SCREEN_P2),y
+	sta (SPRITE_SCREEN_P3),y
+	sta (SPRITE_SCREEN_P4),y
+	iny
+:wipe3e	sta (SPRITE_SCREEN_P),y
+	sta (SPRITE_SCREEN_P2),y
+	sta (SPRITE_SCREEN_P3),y
+	sta (SPRITE_SCREEN_P4),y
+
 	pla	; unstash
 	tay
-	ldx #5
 	sta TXTPAGE1
 	lda #$77
 :wipe4	sta (SPRITE_SCREEN_P),y
@@ -220,8 +267,26 @@ UndrawBird	lda BIRD_Y
 	sta (SPRITE_SCREEN_P3),y
 	sta (SPRITE_SCREEN_P4),y
 	iny
-	dex
-	bne :wipe4
+:wipe4b	sta (SPRITE_SCREEN_P),y
+	sta (SPRITE_SCREEN_P2),y
+	sta (SPRITE_SCREEN_P3),y
+	sta (SPRITE_SCREEN_P4),y
+	iny
+:wipe4c	sta (SPRITE_SCREEN_P),y
+	sta (SPRITE_SCREEN_P2),y
+	sta (SPRITE_SCREEN_P3),y
+	sta (SPRITE_SCREEN_P4),y
+	iny
+:wipe4d	sta (SPRITE_SCREEN_P),y
+	sta (SPRITE_SCREEN_P2),y
+	sta (SPRITE_SCREEN_P3),y
+	sta (SPRITE_SCREEN_P4),y
+	iny
+:wipe4e	sta (SPRITE_SCREEN_P),y
+	sta (SPRITE_SCREEN_P2),y
+	sta (SPRITE_SCREEN_P3),y
+	sta (SPRITE_SCREEN_P4),y
+
 	jmp UndrawBirdDone
 
 DrawBird
@@ -234,15 +299,13 @@ DrawBird
 	sta SPRITE_H
 	lda BIRD_FLAP
 	beq :flapDownEven
-:flapUpEven	CopyPtr BIRD_WUP_MAIN;SPRITE_MAIN_P
-              CopyPtr BIRD_WUP_AUX;SPRITE_AUX_P
-	CopyPtr BIRD_WUP_MASK;SPRITE_MASK_P
-              CopyPtr BIRD_WUP_IMASK;SPRITE_IMASK_P
+:flapUpEven	CopyPtr BIRD_WUP_E_PIXEL;SPRITE_DATA_P
+	CopyPtr BIRD_WUP_E_MASK;SPRITE_MASK_P
+              CopyPtr BIRD_WUP_E_IMASK;SPRITE_IMASK_P
 	jmp :drawSprite
-:flapDownEven	CopyPtr BIRD_WDN_MAIN;SPRITE_MAIN_P
-              CopyPtr BIRD_WDN_AUX;SPRITE_AUX_P
-	CopyPtr BIRD_WDN_MASK;SPRITE_MASK_P
-              CopyPtr BIRD_WDN_IMASK;SPRITE_IMASK_P
+:flapDownEven	CopyPtr BIRD_WDN_E_PIXEL;SPRITE_DATA_P
+	CopyPtr BIRD_WDN_E_MASK;SPRITE_MASK_P
+              CopyPtr BIRD_WDN_E_IMASK;SPRITE_IMASK_P
 	jmp :drawSprite
 
 :oddHeight	
@@ -251,17 +314,157 @@ DrawBird
 	sta SPRITE_H
 	lda BIRD_FLAP
 	beq :flapDownOdd
-:flapUpOdd	CopyPtr BIRD_WUP_O_MAIN;SPRITE_MAIN_P
-              CopyPtr BIRD_WUP_O_AUX;SPRITE_AUX_P
+:flapUpOdd	CopyPtr BIRD_WUP_O_PIXEL;SPRITE_DATA_P
 	CopyPtr BIRD_WUP_O_MASK;SPRITE_MASK_P
               CopyPtr BIRD_WUP_O_IMASK;SPRITE_IMASK_P
 	jmp :drawSprite
-:flapDownOdd	CopyPtr BIRD_WDN_O_MAIN;SPRITE_MAIN_P
-              CopyPtr BIRD_WDN_O_AUX;SPRITE_AUX_P
+:flapDownOdd	CopyPtr BIRD_WDN_O_PIXEL;SPRITE_DATA_P
 	CopyPtr BIRD_WDN_O_MASK;SPRITE_MASK_P
               CopyPtr BIRD_WDN_O_IMASK;SPRITE_IMASK_P
 	jmp :drawSprite
 :drawSprite
 	jsr DrawSpriteBetter
 	jmp DrawBirdDone 
+
+*** MAKE IT WORK
+
+BirdTest
+	lda BIRD_X	;#30 (0-79)
+	sta SPRITE_X
+	lda BIRD_Y	;#10 (0-23)
+	sta SPRITE_Y
+	lda #5	;/2 value (we do two passes of 1/2... Aux/Main)
+	sta SPRITE_W
+	lda #3	;/2 value (must be byte aligned vertically
+	sta SPRITE_H
+;	CopyPtr BIRD_WDN_MAIN;SPRITE_MAIN_P
+;	CopyPtr BIRD_WDN_AUX;SPRITE_AUX_P
+;	CopyPtr BIRD_WDN_MASK;SPRITE_MASK_P
+;	CopyPtr BIRD_WDN_IMASK;SPRITE_IMASK_P
+	jsr DrawSpriteBetter
+	rts
+
+* still does collision
+DrawSpriteBetter
+	lda #0 
+	sta SPRITE_X_IDX
+:drawLine	lda SPRITE_Y	;
+	tay
+	lda LoLineTableL,y	; SET SCREEN LINE
+	sta SPRITE_SCREEN_P
+	lda LoLineTableH,y
+	sta SPRITE_SCREEN_P+1
+
+	lda #BIRD_X ;SPRITE_X		; ADD IN X OFFSET TO SCREEN POSITION
+	clc                         ; I think the highest position is $f8
+	adc SPRITE_SCREEN_P         ; eg- Line 18, col 40= $4f8
+	sta SPRITE_SCREEN_P	; SHOULD NEVER CARRY?
+			
+			
+	jmp DrawSpriteLineC
+]DSLCD_done
+	inc SPRITE_Y
+	dec SPRITE_H
+	lda SPRITE_H
+	bne :drawLine
+	rts
+
+
+DrawSpriteLineC
+	; EVEN COLS
+DD_EVEN	lda #0
+	sta SPRITE_SCREEN_IDX
+	sta TXTPAGE2
+	
+:lineLoop	
+	;ldy SPRITE_X_IDX	; 
+	;lda (SPRITE_IMASK_P),y
+	;beq donePixel
+
+:collisionCheckDrawer
+	ldy SPRITE_SCREEN_IDX	; GET SCREEN PIXELS
+	lda (SPRITE_SCREEN_P),y
+
+	ldy SPRITE_X_IDX	; PREP Y INDEX
+	cmp #$BB		; AUX BGCOLOR @TODO
+	beq :noCollisionSIMPLE
+	pha		; SAVE -> STACK
+	and (SPRITE_IMASK_P),y	
+	cmp #$B0
+	beq :noCollision
+	cmp #$0B
+	beq :noCollision
+	lda #1
+	sta SPRITE_COLLISION
+	sta $c034
+:noCollision
+:doPixels	pla		; Y=SPRITE X   A=BG DATA
+	and (SPRITE_MASK_P),y	; CUT OUT SPRITE IN BG DATA
+	ora (SPRITE_DATA_P),y	; OVERLAY OUR SPRITE DATA
+	ldy SPRITE_SCREEN_IDX
+	sta (SPRITE_SCREEN_P),y
+	sec
+	bcs :donePixel
+
+:noCollisionSIMPLE
+	lda (SPRITE_DATA_P),y
+	ldy SPRITE_SCREEN_IDX
+	sta (SPRITE_SCREEN_P),y
+	
+
+:donePixel	inc SPRITE_X_IDX
+	inc SPRITE_SCREEN_IDX
+	ldy SPRITE_SCREEN_IDX
+	cpy SPRITE_W
+	bcc :lineLoop
+
+DD_ODD
+	; ODD COLS
+	lda #0
+	sta SPRITE_SCREEN_IDX
+	sta TXTPAGE1
+	
+:lineLoop	;ldy SPRITE_X_IDX	; 
+	;lda (SPRITE_IMASK_P),y
+	;beq :noPixel
+
+:collisionCheckDrawer
+	ldy SPRITE_SCREEN_IDX	; GET SCREEN PIXELS
+	lda (SPRITE_SCREEN_P),y
+	ldy SPRITE_X_IDX	; PREP Y INDEX
+	cmp #$77		; MAIN BGCOLOR @TODO
+	beq :noCollisionSIMPLE
+	pha		; SAVE -> STACK
+	and (SPRITE_IMASK_P),y	
+	cmp #$70
+	beq :noCollision
+	cmp #$07
+	beq :noCollision
+	lda #1
+	sta SPRITE_COLLISION
+	sta $c034
+
+:noCollision	
+:doPixels	pla		; Y=SPRITE X   A=BG DATA
+	and (SPRITE_MASK_P),y	; CUT OUT SPRITE IN BG DATA
+	ora (SPRITE_DATA_P),y	; OVERLAY OUR SPRITE DATA
+	ldy SPRITE_SCREEN_IDX
+	sta (SPRITE_SCREEN_P),y
+	sec
+	bcs :donePixel
+
+:noCollisionSIMPLE
+	lda (SPRITE_DATA_P),y
+	ldy SPRITE_SCREEN_IDX
+	sta (SPRITE_SCREEN_P),y
+	
+
+:donePixel	inc SPRITE_X_IDX
+	inc SPRITE_SCREEN_IDX
+	ldy SPRITE_SCREEN_IDX
+	cpy SPRITE_W
+	bcc :lineLoop
+
+
+	jmp ]DSLCD_done
 

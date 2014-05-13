@@ -33,7 +33,7 @@ Main
 
 ** taken from DrawBird
 ** these don't really change so saving some cycles
-	lda BIRD_X
+	lda #BIRD_X
 	sta SPRITE_X
 	lda #5
 	sta SPRITE_W	; all birds are same width
@@ -57,10 +57,8 @@ UndrawBirdDone
 	sta $c034
 	jmp DrawPipes
 DrawPipesDone
-	lda #6
+	lda #14
 	sta $c034
-	jmp HandleInput
-HandleInputDone
 	jmp DrawBird
 DrawBirdDone
 	lda #7
@@ -69,9 +67,14 @@ DrawBirdDone
 DrawScoreDone
 	jmp UpdatePipes
 UpdatePipesDone
-	jsr FlapBird
+	jmp FlapBird
+FlapBirdDone
 	jmp UpdateGrass
 UpdateGrassDone
+	lda #6
+	sta $c034
+	jmp HandleInput
+HandleInputDone
 
 	;jsr WaitKey
 	lda QuitFlag
@@ -80,6 +83,8 @@ UpdateGrassDone
 
 
 HandleInput
+	lda BIRD_Y
+	sta BIRD_Y_OLD
 :kloop	lda KEY
 	bpl :noKey
 :key	sta STROBE
@@ -443,5 +448,4 @@ VBlankGS	lda #0
 	use dlrlib
 	use pipes
 	use numbers
-	use sprite	; this is getting to be a lot
 	use bird
