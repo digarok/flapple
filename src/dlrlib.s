@@ -128,3 +128,222 @@ MainAuxMap
 	hex E0,E8,E1,E9,E2,EA,E3,EB,E4,EC,E5,ED,E6,EE,E7,EF
 	hex 70,78,71,79,72,7A,73,7B,74,7C,75,7D,76,7E,77,7F
 	hex F0,F8,F1,F9,F2,FA,F3,FB,F4,FC,F5,FD,F6,FE,F7,FF
+
+
+LOGO_Y	db 1
+LOGO_X	db 3
+LOGO_CURLINE	db 0
+SPR_SP	equz $00
+SPR_DP	equz $02
+SPR_PIXEL	db 00
+SPR_MASKCOLOR	db 0
+SPR_MASKCOLORH db 0
+SPR_MASKCOLORL db 0
+
+DrawFlogo	lda #$11
+	sta SPR_MASKCOLOR
+	and #$F0
+	sta SPR_MASKCOLORH
+	lsr
+	lsr
+	lsr
+	lsr
+	sta SPR_MASKCOLORL
+	;; @TODO ABOVE
+
+	lda #<flogoData
+	sta SPR_SP
+	lda #>flogoData
+	sta SPR_SP+1
+:lineLoop
+	ldy LOGO_CURLINE
+	cpy #flogoHeight
+	bcc :doLine
+	jmp DrawFlogoDone
+:doLine	ldy LOGO_Y
+	lda LoLineTableL,y
+	clc 
+	adc LOGO_X	;; X OFFSET
+	sta SPR_DP
+	lda LoLineTableH,y
+	sta SPR_DP+1
+	sta TXTPAGE2
+	ldy #$0
+:auxLoop	jsr VBlank
+	lda (SPR_SP),y
+	cmp #flogoMaskColorC
+	beq :auxNoData
+	and #$F0
+	cmp #flogoMaskColorB
+	bne :auxNoMask1
+	lda (SPR_DP),y
+	and #$F0
+	sta SPR_PIXEL
+	lda (SPR_SP),y
+	and #$0F
+	ora SPR_PIXEL
+	bne :auxData
+:auxNoMask1	lda (SPR_SP),y
+	and #$0F
+	cmp #flogoMaskColorA
+	bne :auxNoMask2
+	lda (SPR_DP),y
+	and #$0F
+	sta SPR_PIXEL
+	lda (SPR_SP),y
+	and #$F0
+	ora SPR_PIXEL
+	bne :auxData
+:auxNoMask2	lda (SPR_SP),y
+:auxData	sta (SPR_DP),y
+:auxNoData	iny
+	cpy #flogoWidth
+	bcc :auxLoop
+	lda SPR_SP
+	clc
+	adc #flogoWidth
+	sta SPR_SP
+	bcc :noCarry
+	inc SPR_SP+1
+:noCarry	sta TXTPAGE1
+	ldy #0
+:mainLoop	jsr VBlank
+
+	lda (SPR_SP),y
+	cmp #flogoMaskColorC
+	beq :mainNoData
+	and #$F0
+	cmp #flogoMaskColorB
+	bne :mainNoMask1
+	lda (SPR_DP),y
+	and #$F0
+	sta SPR_PIXEL
+	lda (SPR_SP),y
+	and #$0F
+	ora SPR_PIXEL
+	bne :mainData
+:mainNoMask1	lda (SPR_SP),y
+	and #$0F
+	cmp #flogoMaskColorA
+	bne :mainNoMask2
+	lda (SPR_DP),y
+	and #$0F
+	sta SPR_PIXEL
+	lda (SPR_SP),y
+	and #$F0
+	ora SPR_PIXEL
+	bne :mainData
+:mainNoMask2	lda (SPR_SP),y
+:mainData	sta (SPR_DP),y
+:mainNoData	iny
+	cpy #flogoWidth
+	bcc :mainLoop
+	lda SPR_SP
+	clc
+	adc #flogoWidth
+	sta SPR_SP
+	bcc :noCarry2
+	inc SPR_SP+1
+:noCarry2
+	inc LOGO_CURLINE
+	inc LOGO_Y
+	jmp :lineLoop
+
+DrawFlogoDone	rts
+
+flogoMaskColorA equ #$01
+flogoMaskColorB equ #$10
+flogoMaskColorC equ #$11
+flogoMaskColor equ #$01
+flogoHeight equ #$16
+flogoWidth equ #$21
+** Remember: Data is Aux cols, then main cols, next line, repeat
+flogoData
+ hex FF,0F,0F,0F,0F,0F,0F,0F,0F,0F,0F,0F,0F,FF,11,11,11,11,11,11,11
+ hex 11,FF,0F,0F,0F,0F,0F,0F,0F,0F,0F,FF,0F,0F,0F,0F,0F,0F,0F,0F,0F
+ hex 0F,0F,0F,0F,11,11,11,11,11,11,11,11,11,0F,0F,0F,0F,0F,0F,0F,0F
+ hex 0F,0F,11
+ hex FF,77,77,77,77,77,77,77,00,77,77,77,77,FF,F1,F1,F1,F1,F1,F1,F1
+ hex F1,FF,77,77,00,77,77,77,77,77,77,FF,00,EE,EE,EE,EE,00,EE,EE,EE
+ hex EE,EE,EE,00,F1,F1,F1,F1,F1,F1,F1,F1,F1,00,EE,EE,EE,EE,00,EE,EE
+ hex EE,00,11
+ hex FF,77,77,F7,F7,F7,77,77,00,F7,F7,77,77,70,70,70,70,70,70,70,70
+ hex 70,70,77,77,00,77,77,77,77,F7,F7,FF,00,EE,EE,FE,FE,00,EE,EE,FE
+ hex FE,EE,EE,00,E0,E0,E0,E0,00,E0,E0,E0,E0,00,EE,EE,EE,EE,00,EE,FE
+ hex FE,00,F1
+ hex FF,77,77,70,70,70,77,77,70,70,70,77,77,77,77,77,77,77,77,77,77
+ hex 77,77,77,77,00,77,77,77,77,70,70,00,00,EE,EE,E0,E0,00,EE,00,E0
+ hex E0,EE,EE,00,EE,EE,EE,EE,00,EE,EE,EE,EE,00,EE,EE,EE,EE,00,EE,E0
+ hex E0,E0,FF
+ hex FF,77,77,77,77,77,77,77,77,77,77,77,77,77,77,0F,77,77,77,77,0F
+ hex 77,77,77,77,00,77,77,77,77,77,77,00,00,EE,EE,EE,EE,00,EE,00,EE
+ hex EE,EE,EE,00,EE,EE,EE,EE,00,EE,EE,EE,EE,00,EE,EE,EE,EE,00,EE,EE
+ hex EE,EE,FF
+ hex FF,66,66,F6,F6,F6,66,66,66,66,F6,66,66,66,66,00,66,66,66,66,00
+ hex 66,66,66,66,00,66,66,66,66,F6,F6,00,00,CC,CC,FC,FC,00,CC,00,CC
+ hex CC,CC,CC,00,CC,CC,CC,CC,00,CC,CC,CC,CC,00,CC,CC,CC,CC,00,CC,CC
+ hex FC,FC,FF
+ hex FF,66,66,00,F0,F0,66,66,66,66,60,66,66,66,66,66,66,66,66,66,66
+ hex 66,66,66,66,00,66,66,66,66,60,60,00,00,CC,CC,F0,F0,00,CC,00,CC
+ hex CC,CC,CC,00,CC,CC,CC,CC,00,CC,CC,CC,CC,00,CC,CC,CC,CC,00,CC,CC
+ hex C0,C0,FF
+ hex FF,66,66,00,11,FF,66,66,66,66,66,66,66,66,66,66,66,66,66,66,66
+ hex 66,66,66,66,00,66,66,66,66,66,66,00,00,CC,CC,FF,11,00,CC,00,CC
+ hex CC,CC,CC,00,CC,CC,CC,CC,00,CC,CC,CC,CC,00,CC,CC,CC,CC,00,CC,CC
+ hex CC,CC,FF
+ hex FF,0F,0F,00,11,FF,0F,0F,0F,0F,0F,0F,0F,66,66,0F,0F,0F,66,66,0F
+ hex 0F,0F,0F,0F,00,0F,0F,0F,0F,0F,0F,00,00,0F,0F,FF,11,00,0F,00,0F
+ hex 0F,0F,0F,00,CC,CC,0F,0F,00,CC,CC,0F,0F,00,0F,0F,0F,0F,00,0F,0F
+ hex 0F,0F,FF
+ hex 1F,1F,1F,1F,11,1F,1F,1F,1F,1F,1F,1F,FF,F6,F6,00,1F,FF,F6,F6,00
+ hex 1F,1F,1F,1F,1F,1F,1F,1F,1F,1F,1F,1F,1F,1F,1F,1F,11,1F,1F,1F,1F
+ hex 1F,1F,1F,00,FC,FC,FF,1F,00,FC,FC,FF,1F,1F,1F,1F,1F,1F,1F,1F,1F
+ hex 1F,1F,1F
+ hex 11,11,11,11,11,11,11,11,11,11,11,11,FF,F0,F0,F0,11,FF,F0,F0,F0
+ hex 11,11,11,11,11,11,11,11,11,11,11,11,11,11,11,11,11,11,11,11,11
+ hex 11,11,11,F0,F0,F0,FF,11,F0,F0,F0,FF,11,11,11,11,11,11,11,11,11
+ hex 11,11,11
+ hex 11,11,11,11,11,11,11,11,11,11,11,11,11,11,11,11,11,11,11,11,11
+ hex 11,11,11,11,11,11,11,11,11,11,11,11,11,11,11,11,11,11,11,11,11
+ hex 11,11,11,11,11,11,11,11,11,11,11,11,11,11,11,11,11,11,11,11,11
+ hex 11,11,11
+ hex 11,11,11,11,11,11,11,11,0F,0F,0F,0F,0F,0F,0F,0F,FF,F1,F1,F1,F1
+ hex F1,11,0F,0F,0F,FF,11,11,11,11,11,11,11,11,11,11,11,11,11,FF,0F
+ hex 0F,0F,0F,0F,0F,0F,0F,F1,F1,F1,F1,F1,11,FF,0F,0F,0F,11,11,11,11
+ hex 11,11,11
+ hex 11,11,11,11,11,11,11,11,00,77,77,77,77,00,77,77,70,70,70,70,70
+ hex FF,F1,00,77,77,FF,11,11,11,11,11,11,11,11,11,11,11,11,11,FF,EE
+ hex EE,EE,EE,EE,EE,EE,00,E0,E0,E0,E0,00,F1,FF,EE,EE,00,11,11,11,11
+ hex 11,11,11
+ hex 11,11,11,11,11,11,11,11,00,77,77,77,77,00,F7,F7,77,77,77,77,77
+ hex 70,70,70,77,77,FF,11,11,11,11,11,11,11,11,11,11,11,11,11,FF,EE
+ hex EE,FE,EE,EE,FE,FE,00,EE,EE,EE,EE,00,E0,E0,EE,EE,00,11,11,11,11
+ hex 11,11,11
+ hex 11,11,11,11,11,11,11,11,00,77,77,77,77,00,70,70,77,77,07,77,77
+ hex 77,77,77,77,77,FF,11,11,11,11,11,11,11,11,11,11,11,11,11,FF,EE
+ hex EE,E0,EE,EE,E0,E0,00,EE,EE,EE,EE,00,EE,EE,EE,EE,00,11,11,11,11
+ hex 11,11,11
+ hex 11,11,11,11,11,11,11,11,00,77,77,77,77,00,77,77,77,77,00,F7,F7
+ hex 77,77,F7,77,77,FF,11,11,11,11,11,11,11,11,11,11,11,11,11,FF,EE
+ hex EE,EE,EE,0F,EE,EE,00,EE,EE,FE,FE,00,EE,EE,EE,EE,00,11,11,11,11
+ hex 11,11,11
+ hex 11,11,11,11,11,11,11,11,00,66,66,66,66,00,66,66,66,66,00,F0,F0
+ hex 66,66,00,66,66,FF,11,11,11,11,11,11,11,11,11,11,11,11,11,FF,CC
+ hex CC,FC,CC,CC,CC,CC,00,CC,CC,F0,F0,00,CC,CC,CC,CC,00,11,11,11,11
+ hex 11,11,11
+ hex 11,11,11,11,11,11,11,11,00,66,66,66,66,00,66,66,66,66,00,11,FF
+ hex 66,66,60,66,66,FF,11,11,11,11,11,11,11,11,11,11,11,11,11,FF,CC
+ hex CC,C0,CC,CC,CC,CC,00,CC,CC,FF,11,00,CC,CC,CC,CC,00,11,11,11,11
+ hex 11,11,11
+ hex 11,11,11,11,11,11,11,11,00,66,66,66,66,00,66,66,66,66,00,11,FF
+ hex 66,66,66,66,66,FF,11,11,11,11,11,11,11,11,11,11,11,11,11,FF,CC
+ hex CC,CC,CC,CC,CC,CC,00,CC,CC,FF,11,00,CC,CC,CC,CC,00,11,11,11,11
+ hex 11,11,11
+ hex 11,11,11,11,11,11,11,11,00,0F,0F,0F,0F,00,0F,0F,0F,0F,00,11,FF
+ hex 0F,0F,0F,0F,0F,FF,11,11,11,11,11,11,11,11,11,11,11,11,11,FF,0F
+ hex 0F,0F,0F,0F,0F,0F,00,0F,0F,FF,11,00,0F,0F,0F,0F,00,11,11,11,11
+ hex 11,11,11
+ hex 11,11,11,11,11,11,11,11,1F,1F,1F,1F,1F,1F,1F,1F,1F,1F,1F,11,1F
+ hex 1F,1F,1F,1F,1F,1F,11,11,11,11,11,11,11,11,11,11,11,11,11,1F,1F
+ hex 1F,1F,1F,1F,1F,1F,1F,1F,1F,1F,11,1F,1F,1F,1F,1F,1F,11,11,11,11
+ hex 11,11,11

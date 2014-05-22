@@ -25,80 +25,169 @@ CopyPtr       MAC
 Main	
 	jsr DetectIIgs
 	jsr InitState	;@todo: IIc vblank code
-	
+
+Title	
 	jsr VBlank
 	jsr DL_SetDLRMode
 	lda #$77
 	jsr DL_Clear
+	jsr DrawFlogo
+	jsr WaitKey
 
+PreGameLoop	
+	lda #BIRD_Y_INIT
+	sta BIRD_Y
+	sta BIRD_Y_OLD
+	lda #0
+	sta SPRITE_COLLISION
+
+
+	sta ScoreLo
+	sta ScoreHi
+
+	lda #0
+	ldx #3
+:clearPipes	sta TopPipes,x
+	sta BotPipes
+	dex
+	bpl :clearPipes
+
+
+	jsr VBlank
+	jsr DL_SetDLRMode
+	lda #$77
+	jsr DL_Clear
 ** taken from DrawBird
 ** these don't really change so saving some cycles
 	lda #BIRD_X
 	sta SPRITE_X
 	lda #5
 	sta SPRITE_W	; all birds are same width
+:noKey	jsr VBlank
+	jsr UndrawBird
+	jsr DrawBird
+	jsr UpdateGrass
+	jsr FlapBird
+:kloop	lda KEY
+	bpl :noKey
+:key	sta STROBE
+
+
 
 
 GameLoop	
-	; handle input
-	; draw grass
-	; wait vblank
-	; undraw player
-	; update pipes / draw
-	; update player / draw (w/collision)
-	; update score
-
 	jsr VBlank
-	lda #4
+	lda #$f
 	sta $c034
-	jmp UndrawBird
-UndrawBirdDone
-	lda #5
+
+	jsr UndrawBird
+	lda #$4
 	sta $c034
-	jmp DrawPipes
-DrawPipesDone
-	lda #14
-	sta $c034
-	jmp DrawBird
-DrawBirdDone
-	lda #7
+	jsr DrawPipes
+
+	lda #$7
 	sta $c034
 	jmp DrawScore
 DrawScoreDone
+	lda #$d
+	sta $c034
+	jsr DrawBird
+
+	lda #$8
+	sta $c034
+*:kloop	lda KEY
+*	bpl DONTUPDATEPIPES
+*:key	sta STROBE
+
 	jmp UpdatePipes
 UpdatePipesDone
-	jmp FlapBird
-FlapBirdDone
-	jmp UpdateGrass
-UpdateGrassDone
-	lda #6
-	sta $c034
+DONTUPDATEPIPES
+	jsr FlapBird
+	jsr UpdateGrass
+
 	jmp HandleInput
 HandleInputDone
+	lda SPRITE_COLLISION
+	bne GAME_OVER
 
+	lda #$0
+	sta $c034
 	;jsr WaitKey
 	lda QuitFlag
 	beq GameLoop
-	bne Quit
+	jmp Quit
 
+GAME_OVER	
+	jsr DrawPipes
+NOISE	ldx #$f0	;LENGTH OF NOISE BURST
+	lda #10	;NUMBER OF NOISE BURSTS
+:spkLoop	lda SPEAKER	;TOGGLE SPEAKER
+	jsr GetRand
+	tay
+*	ldy $BA00,X	;GET PULSE WIDTH PSEUDO-RANDOMLY
+:waitLoop	dey	;DELAY LOOP FOR PULSE WIDTH
+	bne :waitLoop
+	dex	;GET NEXT PULSE OF THIS NOISE BURST
+	bne :spkLoop
+	jsr WaitKey
+	jmp PreGameLoop
 
 HandleInput
 	lda BIRD_Y
 	sta BIRD_Y_OLD
+		;Update bird and velocity in here
 :kloop	lda KEY
-	bpl :noKey
+	bpl :noFlap
 :key	sta STROBE
-	cmp #"A"
-	beq :up
-	cmp #"B"
-	beq :dn
+	cmp #"Q"
+	bne :noQuit
 	lda #1
 	sta QuitFlag
-:dn	inc BIRD_Y
-	bpl :keyDone
-:up	dec BIRD_Y
-:noKey
+	bne :keyDone
+:noQuit
+	cmp #"Z"
+	bne :noFlap
+:flap	lda #40
+	sta BIRD_VELOCITY
+	bne :handleBird
+:noFlap	dec BIRD_VELOCITY
+	lda BIRD_VELOCITY
+	bpl :handleBird
+	lda #3 
+	sta BIRD_VELOCITY
+:handleBird
+	lda BIRD_VELOCITY
+	cmp #37
+	bcc :notTop
+	dec BIRD_Y	; +2
+	clc
+	bcc :boundsCheck
+:notTop	cmp #33
+	bcs :boundsCheck
+	cmp #2
+	bcc :DOWN
+	asl 
+	asl 
+	bcc :boundsCheck
+:DOWN	inc BIRD_Y
+
+:boundsCheck
+	lda BIRD_Y
+	bpl :notUnder
+	lda #0 
+	sta BIRD_Y
+	beq :keyDone
+:notUnder	cmp #38	; Life, the Universe, and Everything
+	bcc :keyDone
+	lda #38
+	sta BIRD_Y
 :keyDone	jmp HandleInputDone
+
+
+BIRD_VELOCITY	db 0	; in two's compliment {-3,3} 
+BIRD_VELOCITY_MAX equ #20
+BIRD_VELOCITY_MIN equ #%111111111	; -1
+
 
 QuitFlag	db 0	; set to 1 to quit
 
@@ -118,9 +207,31 @@ QuitParm	dfb 4	; number of parameters
 Error	brk $00	; shouldn't be here either
 
 
+HandleInputTest
+	lda BIRD_Y
+	sta BIRD_Y_OLD
+:kloop	lda KEY
+	bpl :noKey
+:key	sta STROBE
+	cmp #"A"
+	beq :up
+	cmp #"B"
+	beq :dn
+	lda #1
+	sta QuitFlag
+:dn	inc BIRD_Y
+	bpl :keyDone
+:up	dec BIRD_Y
+:noKey
+:keyDone	jmp HandleInputDone
+
 ******************************
 * Score Routines
 *********************
+ScoreLo       db 0          ; 0-99
+ScoreHi       db 0          ; hundreds, not shown on screen
+HiScoreLo	db 0 
+HiScoreHi	db 0
 ** Draw the Score - @todo - handle > 99
 DrawScore	lda ScoreLo
 	and #$0F
@@ -140,6 +251,24 @@ DrawScore	lda ScoreLo
 	sta Lo02+18
 	jmp DrawScoreDone
 
+
+** HANDLE HIGH SCORE	
+UpdateHiScore
+	lda HiScoreHi
+	cmp ScoreHi
+	bcc :newHighScore
+	bne :noHighScore
+	lda HiScoreLo	;high byte equal so compare base byte
+	cmp ScoreLo
+	bcc :newHighScore
+	bcs :noHighScore
+
+
+:newHighScore	lda ScoreHi
+	sta HiScoreHi
+	lda ScoreLo
+	sta HiScoreLo
+:noHighScore	rts
 
 
 	
@@ -338,7 +467,7 @@ UpdateGrass	inc GrassState
 	sta Lo24+35
 	sta Lo24+37
 	sta Lo24+39
-	jmp UpdateGrassDone
+	rts
 
 GrassState	db  00
 GrassTop	hex CE,CE,4E,4E,CE,CE,4E,4E
@@ -413,6 +542,12 @@ VBlankGS2
 	lda #$FE
 :vblInProgress	cmp RDVBLBAR
 	bmi :vblInProgress
+	rts
+	lda #7	; Wait for VBL to start
+	sta $c034
+:vblWaitForStart	cmp RDVBLBAR
+	bpl :vblWaitForStart
+
 	rts
 
 

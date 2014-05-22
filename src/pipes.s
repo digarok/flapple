@@ -22,7 +22,7 @@ PipeBody_Main_O hex 77,ee,cc,cc,44,44,55,77
 PipeBody_Aux_E hex bb,77,66,66,22,22,aa,bb
 PipeBody_Aux_O hex aa,77,77,66,66,22,bb
 
-PipeInterval	equ #40	; game ticks to spawn new pipe
+PipeInterval	equ #60	; game ticks to spawn new pipe
 PipeSpawn	db #45	; our counter, starting point for spawning
 PipeSpawnSema db 0	; points to next spot (even if currently unavailable)
 MaxPipes	equ 2
@@ -56,8 +56,6 @@ PIPE_BODY_BOT db 0	; Y val
 
 
 PipeXScore    equ 50	; pipe at this value causes score increase
-ScoreLo	db 0	; 0-99
-ScoreHi	db 0	; hundreds, not shown on screen
 
 ** LEGACY !  DELETE AFTER REWRITE !
 PIPE_X_FULL	db 0
@@ -87,7 +85,6 @@ MovePipes
 :loop	lda TopPipes,x
 	beq :noPipe
 	dec TopPipes,x
-	;dec BotPipes,x
 	cmp #PipeXScore+1	; A should still be set
 	bne :noScore
 :ScoreUp	sed
@@ -116,11 +113,10 @@ SpawnPipe	lda PipeSpawnSema
 	lsr	; even smaller
 	sta TopPipes+1,x
 	clc
-	adc #10
+	adc #13
 	sta BotPipes+1,x
 	lda #95	; Build X Value ;)
 	sta TopPipes,x  
-	;sta BotPipes,x
 	inc PipeSpawnSema
 	lda PipeSpawnSema
 	cmp #MaxPipes
@@ -138,32 +134,21 @@ DrawPipes
 	beq :noPipes0
 	ldx TopPipes+1	;top Y
 	ldy BotPipes+1	;bottom y
-	jsr DrawPipe2
+	jsr DrawPipe
 
 :noPipes0
 	lda TopPipes+2	;Pipe X
 	beq :noPipes1
 	ldx TopPipes+3	;top Y
 	ldy BotPipes+3	;bottom y
-	jsr DrawPipe2
+	jsr DrawPipe
 :noPipes1
-	jmp DrawPipesDone
+	rts
+*jmp DrawPipesDone	;Back to main
 
 
 * Used by all of the routines that draw the pipe caps
 SetPipeCapPtrs
-	ldy PIPE_Y_IDX
-	lda LoLineTable,y
-	sta PIPE_DP
-	lda LoLineTable+1,y
-	sta PIPE_DP+1	; pointer to line on screen
-	lda LoLineTable+2,y
-	sta PIPE_DP2
-	lda LoLineTable+3,y
-	sta PIPE_DP2+1	; pointer to line on screen
-	rts
-
-SetPipeCapPtrs2
 	ldy PIPE_TOP_Y
 	lda LoLineTableL,y
 	sta PIPE_DP0
@@ -186,7 +171,7 @@ SetPipeCapPtrs2
 	rts
 
 * A= x coord   X=top y   Y=bot y
-DrawPipe2	sta PIPE_X
+DrawPipe	sta PIPE_X
 	stx PIPE_TOP_Y
 	sty PIPE_BOT_Y
 	cmp #95-13
@@ -196,12 +181,13 @@ DrawPipe2	sta PIPE_X
 	lsr
 	sta PIPE_X_IDX
 	bcc :evenR
-:oddR	;jmp DrawPipeOddR
-:evenR	;jmp DrawPipeEvenR
-	jmp DrawPipeDone2
+:oddR	jmp DrawPipeOddR
+:evenR	jmp DrawPipeEvenR
+
 :notOver	cmp #16
 	bcs :NOCLIP	
-:under		; clipped on left
+:under	
+			; clipped on left
 			; X = 0-16	
 	sta PIPE_UNDERVAL	; we're going to flip it around
 	lda #16		; and move backwards from 0.  
@@ -220,11 +206,10 @@ DrawPipe2	sta PIPE_X
 :oddL	dex	; downshift * 1
 	txa	
 	sta PIPE_X_IDX
-	;jmp DrawPipeOddL
+	jmp DrawPipeOddL
 :evenL	txa
 	sta PIPE_X_IDX
-	;jmp DrawPipeEvenL
-	jmp DrawPipeDone2
+	jmp DrawPipeEvenL
 
 :NOCLIP	lda PIPE_X
 	sec 
@@ -232,15 +217,14 @@ DrawPipe2	sta PIPE_X
 	lsr
 	sta PIPE_X_IDX
 	bcc :even
-:odd	jmp DrawPipeOdd2
-:even	jmp DrawPipeEven2
+:odd	jmp DrawPipeOdd
+:even	jmp DrawPipeEven
 
 
-DrawPipeDone2	rts
 
 
-DrawPipeEven2
-	jsr SetPipeCapPtrs2
+DrawPipeEven
+	jsr SetPipeCapPtrs
 
 	sta TXTPAGE2
 	ldy PIPE_X_IDX	; y= the x offset... yay dp indexing on 6502
@@ -350,7 +334,7 @@ DrawPipeEven2
 	sta PIPE_Y	; current line
 	lda PIPE_TOP_Y
 	sta PIPE_BODY_BOT
-	jsr DrawPipeBodyEven2
+	jsr DrawPipeBodyEven
 
 	ldy PIPE_BOT_Y
 	iny
@@ -358,16 +342,17 @@ DrawPipeEven2
 	sty PIPE_Y	; current line
 	lda #22
 	sta PIPE_BODY_BOT
-	jsr DrawPipeBodyEven2
+	jsr DrawPipeBodyEven
 
-	jmp DrawPipeDone
+	rts	; !!! FORMERLY WAS 'jmp DrawPipeDone' !!! 
+		; !!! We are actually returning for parent DrawPipe
 	
 
 
 
 
 
-DrawPipeBodyEven2
+DrawPipeBodyEven
 :loop	ldy PIPE_Y
 	cpy PIPE_BODY_BOT
 	bcs :done
@@ -437,14 +422,8 @@ DrawPipeBodyEven2
 
 
 
-
-
-
-
-
-
-DrawPipeOdd2
-	jsr SetPipeCapPtrs2
+DrawPipeOdd
+	jsr SetPipeCapPtrs
 	sta TXTPAGE1
 	ldy PIPE_X_IDX	; y= the x offset... yay dp indexing on 6502
 			; for this "odd" routine, we add 1 for TXTPAGE2
@@ -557,7 +536,7 @@ DrawPipeOdd2
 	sta PIPE_Y	; current line
 	lda PIPE_TOP_Y
 	sta PIPE_BODY_BOT
-	jsr DrawPipeBodyOdd2
+	jsr DrawPipeBodyOdd
 
 	ldy PIPE_BOT_Y
 	iny
@@ -565,11 +544,11 @@ DrawPipeOdd2
 	sty PIPE_Y	; current line
 	lda #22
 	sta PIPE_BODY_BOT
-	jsr DrawPipeBodyOdd2
+	jsr DrawPipeBodyOdd
 
 
 
-DrawPipeBodyOdd2
+DrawPipeBodyOdd
 :loop	ldy PIPE_Y
 	cpy PIPE_BODY_BOT
 	bcs :done
@@ -637,683 +616,9 @@ DrawPipeBodyOdd2
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-* A=x Y=(byte)y X=pipe top/bottom
-DrawPipe
-	lda PIPE_Y
-	asl	; *2
-	sta PIPE_Y_IDX
-
-	lda PIPE_X_FULL
-	cmp #95-12
-	bcc :notOver
-:OVER	sec	; clipped on the right.. maybe left too
-	sbc #16
-	lsr
-	sta PIPE_X_IDX
-	bcc :evenR
-:oddR	jmp DrawPipeOddR
-:evenR	jmp DrawPipeEvenR
-:notOver	cmp #16
-	bcs :NOCLIP
-:UNDER			; X = 0-16	
-	sta PIPE_UNDERVAL	; we're going to flip it around
-	lda #16		; and move backwards from 0.  
-	sec
-	sbc PIPE_UNDERVAL
-	pha
-	lsr
-	sta PIPE_UNDERVAL
-	lda #0
-	sec
-	sbc PIPE_UNDERVAL
-	tax 
-	pla
-	lsr
-	bcc :evenL
-:oddL	dex	; downshift * 1
-	txa	
-	sta PIPE_X_IDX
-	jmp DrawPipeOddL
-:evenL	txa
-	sta PIPE_X_IDX
-	jmp DrawPipeEvenL
-
-:NOCLIP	lda PIPE_X_FULL
-	sec 
-	sbc #16
-	lsr
-	sta PIPE_X_IDX
-	bcc :even
-:odd	jmp DrawPipeOdd
-:even	jmp DrawPipeEven
-DrawPipeDone	rts
-
-
-DrawPipeOddL	
+DrawPipeEvenR
 	jsr SetPipeCapPtrs
-	sta TXTPAGE1	
-	lda PIPE_X_IDX	; y= the x offset... yay dp indexing on 6502
-			; optimized by hand, not perfect, but big help
-	clc
-	adc #PIPE_WIDTH/2
-	tax	;stash for below loop
-	tay	
-		;col 14 (rightmost)
-	cpy #PIPE_RCLIP
-	bcs :RCLIP
-	lda #$77
-	sta (PIPE_DP),y
-	sta (PIPE_DP2),y
-	dey	;col 12
-	cpy #PIPE_RCLIP
-	bcs :RCLIP
-	lda #$45
-	sta (PIPE_DP),y
-	lda #$54
-	sta (PIPE_DP2),y
-	dey	;col 10
-	cpy #PIPE_RCLIP
-	bcs :RCLIP
-	lda #$C5
-	sta (PIPE_DP),y
-	lda #$5C
-	sta (PIPE_DP2),y
-	dey	;col 8
-	cpy #PIPE_RCLIP
-	bcs :RCLIP
-	sta (PIPE_DP2),y
-	lda #$C5
-	sta (PIPE_DP),y
-	dey	;col 6
-	cpy #PIPE_RCLIP
-	bcs :RCLIP
-	sta (PIPE_DP),y
-	lda #$5C
-	sta (PIPE_DP2),y
-	dey	;col 4
-	cpy #PIPE_RCLIP
-	bcs :RCLIP
-	lda #$E5
-	sta (PIPE_DP),y
-	lda #$5E
-	sta (PIPE_DP2),y
-	dey	;col 2
-	cpy #PIPE_RCLIP
-	bcs :RCLIP
-	sta (PIPE_DP2),y
-	lda #$E5
-	sta (PIPE_DP),y
-	dey	;col 0 (final! leftmost)
-	cpy #PIPE_RCLIP
-	bcs :RCLIP
-	lda #$55
-	sta (PIPE_DP),y
-	sta (PIPE_DP2),y
-:RCLIP
-	sta TXTPAGE2
-	txa
-	tay
-		;col 13
-	cpy #PIPE_RCLIP
-	bcs :RCLIP2
-	lda #$AA
-	sta (PIPE_DP),y
-	sta (PIPE_DP2),y
-	dey	;col 11
-	cpy #PIPE_RCLIP
-	bcs :RCLIP2
-	lda #$2A
-	sta (PIPE_DP),y
-	lda #$A2
-	sta (PIPE_DP2),y
-	dey	;col 9
-	cpy #PIPE_RCLIP
-	bcs :RCLIP2
-	sta (PIPE_DP2),y
-	lda #$2A
-	sta (PIPE_DP),y
-	dey	;col 7
-	cpy #PIPE_RCLIP
-	bcs :RCLIP2
-	lda #$6A
-	sta (PIPE_DP),y
-	lda #$A6
-	sta (PIPE_DP2),y
-	dey	;col 5
-	cpy #PIPE_RCLIP
-	bcs :RCLIP2
-	sta (PIPE_DP2),y
-	lda #$6A
-	sta (PIPE_DP),y
-	dey	;col 3
-	cpy #PIPE_RCLIP
-	bcs :RCLIP2
-	sta (PIPE_DP),y
-	lda #$A6
-	sta (PIPE_DP2),y
-	dey	;col 1
-	cpy #PIPE_RCLIP
-	bcs :RCLIP2
-	lda #$7A
-	sta (PIPE_DP),y
-	lda #$A7
-	sta (PIPE_DP2),y
-:RCLIP2
 
-*** Handle body 
-	lda PIPE_T_B	; TOP or BOTTOM ?
-	bne :doBottom
-:doTop	
-	;lda #0
-		
-	sta PIPE_BODY_TOP	; 0 from above
-	sta PIPE_Y_IDX              ; current line
-	lda PIPE_Y
-	sta PIPE_BODY_BOT
-	jmp DrawPipeBodyOddL
-:doBottom	
-	ldy PIPE_Y
-	iny
-	iny
-	sty PIPE_BODY_TOP
-	tya
-	asl		; *2 
-	sta PIPE_Y_IDX	; current line
-	lda #22
-	sta PIPE_BODY_BOT
-	jmp DrawPipeBodyOddL
-
-
-
-DrawPipeEvenL	
-	jsr SetPipeCapPtrs
-	sta TXTPAGE2	
-	lda PIPE_X_IDX	; y= the x offset... yay dp indexing on 6502
-			; optimized by hand, not perfect, but big help
-	clc
-	adc #PIPE_WIDTH/2
-	tax	;stash for below loop
-	tay	
-		;col 14 (rightmost)
-	cpy #PIPE_RCLIP
-	bcs :RCLIP
-	lda #$BB
-	sta (PIPE_DP),y
-	sta (PIPE_DP2),y
-	dey	;col 12
-	cpy #PIPE_RCLIP
-	bcs :RCLIP
-	lda #$2A
-	sta (PIPE_DP),y
-	lda #$A2
-	sta (PIPE_DP2),y
-	dey	;col 10
-	cpy #PIPE_RCLIP
-	bcs :RCLIP
-	lda #$6A
-	sta (PIPE_DP),y
-	lda #$A6
-	sta (PIPE_DP2),y
-	dey	;col 8
-	cpy #PIPE_RCLIP
-	bcs :RCLIP
-	sta (PIPE_DP2),y
-	lda #$6A
-	sta (PIPE_DP),y
-	dey	;col 6
-	cpy #PIPE_RCLIP
-	bcs :RCLIP
-	sta (PIPE_DP),y
-	lda #$A6
-	sta (PIPE_DP2),y
-	dey	;col 4
-	cpy #PIPE_RCLIP
-	bcs :RCLIP
-	lda #$7A
-	sta (PIPE_DP),y
-	lda #$A7
-	sta (PIPE_DP2),y
-	dey	;col 2
-	cpy #PIPE_RCLIP
-	bcs :RCLIP
-	sta (PIPE_DP2),y
-	lda #$7A
-	sta (PIPE_DP),y
-	dey	;col 0 (final! leftmost)
-	cpy #PIPE_RCLIP
-	bcs :RCLIP
-	lda #$AA
-	sta (PIPE_DP),y
-	sta (PIPE_DP2),y
-:RCLIP
-	sta TXTPAGE1
-	txa
-	tay
-	dey
-		;col 13
-	cpy #PIPE_RCLIP
-	bcs :RCLIP2
-	lda #$55
-	sta (PIPE_DP),y
-	sta (PIPE_DP2),y
-	dey	;col 11
-	cpy #PIPE_RCLIP
-	bcs :RCLIP2
-	lda #$45
-	sta (PIPE_DP),y
-	lda #$54
-	sta (PIPE_DP2),y
-	dey	;col 9
-	cpy #PIPE_RCLIP
-	bcs :RCLIP2
-	sta (PIPE_DP2),y
-	lda #$45
-	sta (PIPE_DP),y
-	dey	;col 7
-	cpy #PIPE_RCLIP
-	bcs :RCLIP2
-	lda #$C5
-	sta (PIPE_DP),y
-	lda #$5C
-	sta (PIPE_DP2),y
-	dey	;col 5
-	cpy #PIPE_RCLIP
-	bcs :RCLIP2
-	sta (PIPE_DP2),y
-	lda #$C5
-	sta (PIPE_DP),y
-	dey	;col 3
-	cpy #PIPE_RCLIP
-	bcs :RCLIP2
-	sta (PIPE_DP),y
-	lda #$5C
-	sta (PIPE_DP2),y
-	dey	;col 1
-	cpy #PIPE_RCLIP
-	bcs :RCLIP2
-	lda #$E5
-	sta (PIPE_DP),y
-	lda #$5E
-	sta (PIPE_DP2),y
-:RCLIP2
-
-
-*** Handle body 
-	lda PIPE_T_B	; TOP or BOTTOM ?
-	bne :doBottom
-:doTop
-	lda #0
-	sta PIPE_BODY_TOP
-	sta PIPE_Y_IDX	; current line
-	lda PIPE_Y
-	sta PIPE_BODY_BOT
-	jmp DrawPipeBodyEvenL  
-:doBottom	
-	ldy PIPE_Y
-	iny
-	iny
-	sty PIPE_BODY_TOP
-	tya
-	asl		; *2 
-	sta PIPE_Y_IDX	; current line
-	lda #22
-	sta PIPE_BODY_BOT
-	jmp DrawPipeBodyEvenL
-
-
-DrawPipeOdd	jsr SetPipeCapPtrs
-	sta TXTPAGE1
-	ldy PIPE_X_IDX	; y= the x offset... yay dp indexing on 6502
-			; for this "odd" routine, we add 1 for TXTPAGE2
-
-			; optimized by hand, not perfect, but big help
-		;col 0
-	lda #$55
-	sta (PIPE_DP),y
-	sta (PIPE_DP2),y
-	iny	;col 2
-	lda #$E5
-	sta (PIPE_DP),y
-	lda #$5E
-	sta (PIPE_DP2),y
-	iny	;col 4
-	sta (PIPE_DP2),y
-	lda #$E5
-	sta (PIPE_DP),y
-	iny	;col 6
-	lda #$C5
-	sta (PIPE_DP),y
-	lda #$5C
-	sta (PIPE_DP2),y
-	iny	;col 8
-	sta (PIPE_DP2),y
-	lda #$C5
-	sta (PIPE_DP),y
-	iny	;col 10
-	sta (PIPE_DP),y
-	lda #$5C
-	sta (PIPE_DP2),y
-	iny	;col 12
-	lda #$45
-	sta (PIPE_DP),y
-	lda #$54
-	sta (PIPE_DP2),y
-	iny	;col 14 (final!)
-	lda #$77
-	sta (PIPE_DP),y
-	sta (PIPE_DP2),y
-:RCLIP
-
-	sta TXTPAGE2
-	ldy PIPE_X_IDX	; y= the x offset... yay dp indexing on 6502
-	iny	; TXTPAGE2 is +1 in "odd" mode
-		;col 1
-	lda #$7A
-	sta (PIPE_DP),y
-	lda #$A7
-	sta (PIPE_DP2),y
-	iny	;col 3
-	lda #$6A
-	sta (PIPE_DP),y
-	lda #$A6
-	sta (PIPE_DP2),y
-	iny	;col 5
-	sta (PIPE_DP2),y
-	lda #$6A
-	sta (PIPE_DP),y
-	iny	;col 7
-	sta (PIPE_DP),y
-	lda #$A6
-	sta (PIPE_DP2),y
-	iny	;col 9
-	lda #$2A
-	sta (PIPE_DP),y
-	lda #$A2
-	sta (PIPE_DP2),y
-	iny	;col 11
-	sta (PIPE_DP2),y
-	lda #$2A
-	sta (PIPE_DP),y
-	iny	;col 13
-	lda #$AA
-	sta (PIPE_DP),y
-	sta (PIPE_DP2),y
-:RCLIP2
-* Handle body 
-	lda PIPE_T_B	; TOP or BOTTOM ?
-	bne :doBottom
-:doTop	
-	lda #0
-	sta PIPE_BODY_TOP
-	sta PIPE_Y_IDX	; current line
-	lda PIPE_Y
-	sta PIPE_BODY_BOT
-	jmp DrawPipeBodyOdd
-:doBottom	
-	ldy PIPE_Y
-	iny
-	iny
-	sty PIPE_BODY_TOP
-	tya
-	asl		; *2 
-	sta PIPE_Y_IDX	; current line
-	lda #22
-	sta PIPE_BODY_BOT
-	jmp DrawPipeBodyOdd
-
-DrawPipeOddR	jsr SetPipeCapPtrs
-	sta TXTPAGE1
-	ldy PIPE_X_IDX	; y= the x offset... yay dp indexing on 6502
-			; for this "odd" routine, we add 1 for TXTPAGE2
-
-			; optimized by hand, not perfect, but big help
-		;col 0
-	cpy #PIPE_RCLIP
-	bcs :RCLIP
-	lda #$55
-	sta (PIPE_DP),y
-	sta (PIPE_DP2),y
-	iny	;col 2
-	cpy #PIPE_RCLIP
-	bcs :RCLIP
-	lda #$E5
-	sta (PIPE_DP),y
-	lda #$5E
-	sta (PIPE_DP2),y
-	iny	;col 4
-	cpy #PIPE_RCLIP
-	bcs :RCLIP
-	sta (PIPE_DP2),y
-	lda #$E5
-	sta (PIPE_DP),y
-	iny	;col 6
-	cpy #PIPE_RCLIP
-	bcs :RCLIP
-	lda #$C5
-	sta (PIPE_DP),y
-	lda #$5C
-	sta (PIPE_DP2),y
-	iny	;col 8
-	cpy #PIPE_RCLIP
-	bcs :RCLIP
-	sta (PIPE_DP2),y
-	lda #$C5
-	sta (PIPE_DP),y
-	iny	;col 10
-	cpy #PIPE_RCLIP
-	bcs :RCLIP
-	sta (PIPE_DP),y
-	lda #$5C
-	sta (PIPE_DP2),y
-	iny	;col 12
-	cpy #PIPE_RCLIP
-	bcs :RCLIP
-	lda #$45
-	sta (PIPE_DP),y
-	lda #$54
-	sta (PIPE_DP2),y
-	iny	;col 14 (final!)
-	cpy #PIPE_RCLIP
-	bcs :RCLIP
-	lda #$77
-	sta (PIPE_DP),y
-	sta (PIPE_DP2),y
-:RCLIP
-
-	sta TXTPAGE2
-	ldy PIPE_X_IDX	; y= the x offset... yay dp indexing on 6502
-	iny	; TXTPAGE2 is +1 in "odd" mode
-		;col 1
-	cpy #PIPE_RCLIP
-	bcs :RCLIP2
-	lda #$7A
-	sta (PIPE_DP),y
-	lda #$A7
-	sta (PIPE_DP2),y
-	iny	;col 3
-	cpy #PIPE_RCLIP
-	bcs :RCLIP2
-	lda #$6A
-	sta (PIPE_DP),y
-	lda #$A6
-	sta (PIPE_DP2),y
-	iny	;col 5
-	cpy #PIPE_RCLIP
-	bcs :RCLIP2
-	sta (PIPE_DP2),y
-	lda #$6A
-	sta (PIPE_DP),y
-	iny	;col 7
-	cpy #PIPE_RCLIP
-	bcs :RCLIP2
-	sta (PIPE_DP),y
-	lda #$A6
-	sta (PIPE_DP2),y
-	iny	;col 9
-	cpy #PIPE_RCLIP
-	bcs :RCLIP2
-	lda #$2A
-	sta (PIPE_DP),y
-	lda #$A2
-	sta (PIPE_DP2),y
-	iny	;col 11
-	cpy #PIPE_RCLIP
-	bcs :RCLIP2
-	sta (PIPE_DP2),y
-	lda #$2A
-	sta (PIPE_DP),y
-	iny	;col 13
-	cpy #PIPE_RCLIP
-	bcs :RCLIP2
-	lda #$AA
-	sta (PIPE_DP),y
-	sta (PIPE_DP2),y
-:RCLIP2
-* Handle body 
-	lda PIPE_T_B	; TOP or BOTTOM ?
-	bne :doBottom
-:doTop	
-	lda #0
-	sta PIPE_BODY_TOP
-	sta PIPE_Y_IDX	; current line
-	lda PIPE_Y
-	sta PIPE_BODY_BOT
-	jmp DrawPipeBodyOddR
-:doBottom	
-	ldy PIPE_Y
-	iny
-	iny
-	sty PIPE_BODY_TOP
-	tya
-	asl		; *2 
-	sta PIPE_Y_IDX	; current line
-	lda #22
-	sta PIPE_BODY_BOT
-	jmp DrawPipeBodyOddR
-
-
-
-DrawPipeEven	jsr SetPipeCapPtrs
-	sta TXTPAGE2
-	ldy PIPE_X_IDX	; y= the x offset... yay dp indexing on 6502
-			; optimized by hand, not perfect, but big help
-		;col 0
-	lda #$AA
-	sta (PIPE_DP),y
-	sta (PIPE_DP2),y
-	iny	;col 2
-	lda #$7A
-	sta (PIPE_DP),y
-	lda #$A7
-	sta (PIPE_DP2),y
-	iny	;col 4
-	sta (PIPE_DP2),y
-	lda #$7A
-	sta (PIPE_DP),y
-	iny	;col 6
-	lda #$6A
-	sta (PIPE_DP),y
-	lda #$A6
-	sta (PIPE_DP2),y
-	iny	;col 8
-	sta (PIPE_DP2),y
-	lda #$6A
-	sta (PIPE_DP),y
-	iny	;col 10
-	sta (PIPE_DP),y
-	lda #$A6
-	sta (PIPE_DP2),y
-	iny	;col 12
-	lda #$2A
-	sta (PIPE_DP),y
-	lda #$A2
-	sta (PIPE_DP2),y
-	iny	;col 14 (final!)
-	lda #$BB
-	sta (PIPE_DP),y
-	sta (PIPE_DP2),y
-:RCLIP
-	sta TXTPAGE1
-	ldy PIPE_X_IDX	; y= the x offset... yay dp indexing on 6502
-		;col 1
-	lda #$E5
-	sta (PIPE_DP),y
-	lda #$5E
-	sta (PIPE_DP2),y
-	iny	;col 3
-	lda #$C5
-	sta (PIPE_DP),y
-	lda #$5C
-	sta (PIPE_DP2),y
-	iny	;col 5
-	sta (PIPE_DP2),y
-	lda #$C5
-	sta (PIPE_DP),y
-	iny	;col 7
-	sta (PIPE_DP),y
-	lda #$5C
-	sta (PIPE_DP2),y
-	iny	;col 9
-	lda #$45
-	sta (PIPE_DP),y
-	lda #$54
-	sta (PIPE_DP2),y
-	iny	;col 11
-	sta (PIPE_DP2),y
-	lda #$45
-	sta (PIPE_DP),y
-	iny	;col 13
-	lda #$55
-	sta (PIPE_DP),y
-	sta (PIPE_DP2),y
-:RCLIP2
-
-* Handle body 
-	lda PIPE_T_B	; TOP or BOTTOM ?
-	bne :doBottom
-:doTop	
-	lda #0
-	sta PIPE_BODY_TOP
-	sta PIPE_Y_IDX	; current line
-	lda PIPE_Y
-	sta PIPE_BODY_BOT
-	jmp DrawPipeBodyEven
-:doBottom	
-	ldy PIPE_Y
-	iny
-	iny
-	sty PIPE_BODY_TOP
-	tya
-	asl		; *2 
-	sta PIPE_Y_IDX	; current line
-	lda #22
-	sta PIPE_BODY_BOT
-	jmp DrawPipeBodyEven
-
-
-
-DrawPipeEvenR	jsr SetPipeCapPtrs
 	sta TXTPAGE2
 	ldy PIPE_X_IDX	; y= the x offset... yay dp indexing on 6502
 			; optimized by hand, not perfect, but big help
@@ -1321,53 +626,69 @@ DrawPipeEvenR	jsr SetPipeCapPtrs
 	cpy #PIPE_RCLIP
 	bcs :RCLIP
 	lda #$AA
-	sta (PIPE_DP),y
+	sta (PIPE_DP0),y
+	sta (PIPE_DP1),y
 	sta (PIPE_DP2),y
+	sta (PIPE_DP3),y
 	iny	;col 2
 	cpy #PIPE_RCLIP
 	bcs :RCLIP
 	lda #$7A
-	sta (PIPE_DP),y
-	lda #$A7
+	sta (PIPE_DP0),y
 	sta (PIPE_DP2),y
+	lda #$A7
+	sta (PIPE_DP1),y
+	sta (PIPE_DP3),y
 	iny	;col 4
 	cpy #PIPE_RCLIP
 	bcs :RCLIP
-	sta (PIPE_DP2),y
+	sta (PIPE_DP1),y
+	sta (PIPE_DP3),y
 	lda #$7A
-	sta (PIPE_DP),y
+	sta (PIPE_DP0),y
+	sta (PIPE_DP2),y
 	iny	;col 6
 	cpy #PIPE_RCLIP
 	bcs :RCLIP
 	lda #$6A
-	sta (PIPE_DP),y
-	lda #$A6
+	sta (PIPE_DP0),y
 	sta (PIPE_DP2),y
+	lda #$A6
+	sta (PIPE_DP1),y
+	sta (PIPE_DP3),y
 	iny	;col 8
 	cpy #PIPE_RCLIP
 	bcs :RCLIP
-	sta (PIPE_DP2),y
+	sta (PIPE_DP1),y
+	sta (PIPE_DP3),y
 	lda #$6A
-	sta (PIPE_DP),y
+	sta (PIPE_DP0),y
+	sta (PIPE_DP2),y
 	iny	;col 10
 	cpy #PIPE_RCLIP
 	bcs :RCLIP
-	sta (PIPE_DP),y
-	lda #$A6
+	sta (PIPE_DP0),y
 	sta (PIPE_DP2),y
+	lda #$A6
+	sta (PIPE_DP1),y
+	sta (PIPE_DP3),y
 	iny	;col 12
 	cpy #PIPE_RCLIP
 	bcs :RCLIP
 	lda #$2A
-	sta (PIPE_DP),y
-	lda #$A2
+	sta (PIPE_DP0),y
 	sta (PIPE_DP2),y
+	lda #$A2
+	sta (PIPE_DP1),y
+	sta (PIPE_DP3),y
 	iny	;col 14 (final!)
 	cpy #PIPE_RCLIP
 	bcs :RCLIP
 	lda #$BB
-	sta (PIPE_DP),y
+	sta (PIPE_DP0),y
+	sta (PIPE_DP1),y
 	sta (PIPE_DP2),y
+	sta (PIPE_DP3),y
 :RCLIP
 	sta TXTPAGE1
 	ldy PIPE_X_IDX	; y= the x offset... yay dp indexing on 6502
@@ -1375,153 +696,91 @@ DrawPipeEvenR	jsr SetPipeCapPtrs
 	cpy #PIPE_RCLIP
 	bcs :RCLIP2
 	lda #$E5
-	sta (PIPE_DP),y
-	lda #$5E
+	sta (PIPE_DP0),y
 	sta (PIPE_DP2),y
+	lda #$5E
+	sta (PIPE_DP1),y
+	sta (PIPE_DP3),y
 	iny	;col 3
 	cpy #PIPE_RCLIP
 	bcs :RCLIP2
 	lda #$C5
-	sta (PIPE_DP),y
-	lda #$5C
+	sta (PIPE_DP0),y
 	sta (PIPE_DP2),y
+	lda #$5C
+	sta (PIPE_DP1),y
+	sta (PIPE_DP3),y
 	iny	;col 5
 	cpy #PIPE_RCLIP
 	bcs :RCLIP2
-	sta (PIPE_DP2),y
+	sta (PIPE_DP1),y
+	sta (PIPE_DP3),y
 	lda #$C5
-	sta (PIPE_DP),y
+	sta (PIPE_DP0),y
+	sta (PIPE_DP2),y
 	iny	;col 7
 	cpy #PIPE_RCLIP
 	bcs :RCLIP2
-	sta (PIPE_DP),y
-	lda #$5C
+	sta (PIPE_DP0),y
 	sta (PIPE_DP2),y
+	lda #$5C
+	sta (PIPE_DP1),y
+	sta (PIPE_DP3),y
 	iny	;col 9
 	cpy #PIPE_RCLIP
 	bcs :RCLIP2
 	lda #$45
-	sta (PIPE_DP),y
-	lda #$54
+	sta (PIPE_DP0),y
 	sta (PIPE_DP2),y
+	lda #$54
+	sta (PIPE_DP1),y
+	sta (PIPE_DP3),y
 	iny	;col 11
 	cpy #PIPE_RCLIP
 	bcs :RCLIP2
-	sta (PIPE_DP2),y
+	sta (PIPE_DP1),y
+	sta (PIPE_DP3),y
 	lda #$45
-	sta (PIPE_DP),y
+	sta (PIPE_DP0),y
+	sta (PIPE_DP2),y
 	iny	;col 13
 	cpy #PIPE_RCLIP
 	bcs :RCLIP2
 	lda #$55
-	sta (PIPE_DP),y
+	sta (PIPE_DP0),y
+	sta (PIPE_DP1),y
 	sta (PIPE_DP2),y
+	sta (PIPE_DP3),y
 :RCLIP2
 
 * Handle body 
-	lda PIPE_T_B	; TOP or BOTTOM ?
-	bne :doBottom
-:doTop	
 	lda #0
-	sta PIPE_BODY_TOP
-	sta PIPE_Y_IDX	; current line
-	lda PIPE_Y
+	sta PIPE_Y	; current line
+	lda PIPE_TOP_Y
 	sta PIPE_BODY_BOT
-	jmp DrawPipeBodyEvenR
-:doBottom	
-	ldy PIPE_Y
+	jsr DrawPipeBodyEvenR
+
+	ldy PIPE_BOT_Y
 	iny
 	iny
-	sty PIPE_BODY_TOP
-	tya
-	asl		; *2 
-	sta PIPE_Y_IDX	; current line
+	sty PIPE_Y	; current line
 	lda #22
 	sta PIPE_BODY_BOT
-	jmp DrawPipeBodyEvenR
+	jsr DrawPipeBodyEvenR
 
-
-*****************************************
-*** Draw Body - Even Full 
-DrawPipeBodyEven
-:loop	lda PIPE_Y_IDX
-	lsr	; /2
-	cmp PIPE_BODY_BOT
-	bcs :done
-	ldy PIPE_Y_IDX	; revert to table-lookup form
-
-	lda LoLineTable,y
-	sta PIPE_DP
-	lda LoLineTable+1,y
-	sta PIPE_DP+1	; pointer to line on screen
-	
-	sta TXTPAGE1
-*** Version 3 - FULL OPTIMIZATION
-	ldy PIPE_X_IDX
-	lda #$55	; PipeBody_Main_E
-	sta (PIPE_DP),y
-	iny
-	lda #$EE
-	sta (PIPE_DP),y
-	iny
-	sta (PIPE_DP),y
-	iny
-	lda #$CC
-	sta (PIPE_DP),y
-	iny
-	sta (PIPE_DP),y
-	iny
-	lda #$44
-	sta (PIPE_DP),y
-	iny
-	lda #$77
-	sta (PIPE_DP),y
+	rts	; !!! FORMERLY WAS 'jmp DrawPipeDone' !!! 
+		; !!! We are actually returning for parent DrawPipe
 
 
 
-	sta TXTPAGE2
-*** Version 3 - FULL OPTIMIZATION
-	ldy PIPE_X_IDX
-	;lda #$BB	; PipeBody_Aux_E
-	;sta (PIPE_DP),y
-	iny
-	lda #$77
-	sta (PIPE_DP),y
-	iny
-	lda #$66
-	sta (PIPE_DP),y
-	iny
-	sta (PIPE_DP),y
-	iny
-	lda #$22
-	sta (PIPE_DP),y
-	iny
-	sta (PIPE_DP),y
-	iny
-	lda #$AA
-	sta (PIPE_DP),y
-	iny
-	lda #$BB
-	sta (PIPE_DP),y
-
-	inc PIPE_Y_IDX
-	inc PIPE_Y_IDX
-	jmp :loop
-
-:done	jmp DrawPipeDone
-
-*****************************************
-*** Draw Body - Even Right version
 DrawPipeBodyEvenR
-:loop	lda PIPE_Y_IDX
-	lsr	; /2
-	cmp PIPE_BODY_BOT
+:loop	ldy PIPE_Y
+	cpy PIPE_BODY_BOT
 	bcs :done
-	ldy PIPE_Y_IDX	; revert to table-lookup form
 
-	lda LoLineTable,y
+	lda LoLineTableL,y
 	sta PIPE_DP
-	lda LoLineTable+1,y
+	lda LoLineTableH,y
 	sta PIPE_DP+1	; pointer to line on screen
 	
 	sta TXTPAGE1
@@ -1556,147 +815,181 @@ DrawPipeBodyEvenR
 	dey
 	dex
 	bpl :evenLoop
-	inc PIPE_Y_IDX
-	inc PIPE_Y_IDX
+	inc PIPE_Y
 	jmp :loop
 
-:done	jmp DrawPipeDone
+:done	rts
 
 
-********************************
-*** Draw Body - Even Left version
-DrawPipeBodyEvenL
-:loop	lda PIPE_Y_IDX
-	lsr	; *2
-	cmp PIPE_BODY_BOT
-	beq :done
-	ldy PIPE_Y_IDX
-
-	lda LoLineTable,y
-	sta PIPE_DP
-	lda LoLineTable+1,y
-	sta PIPE_DP+1	; pointer to line on screen
-
-	sta TXTPAGE2
-	lda PIPE_X_IDX
-	clc
-	adc #PIPE_WIDTH/2
-	bmi :done
-	pha	;PHA for below loop
-	tay	
-	ldx #PIPE_WIDTH/2
-	
-:evenLoop	lda PipeBody_Aux_E,x
-	sta (PIPE_DP),y
-	dex
-	dey
-	bpl :evenLoop
-
+DrawPipeOddR	
+	jsr SetPipeCapPtrs
 	sta TXTPAGE1
-	pla	;PLA from above
-	tay	
-	ldx #PIPE_WIDTH/2
+	ldy PIPE_X_IDX	; y= the x offset... yay dp indexing on 6502
+			; for this "odd" routine, we add 1 for TXTPAGE2
 
-:oddLoop	lda PipeBody_Main_E,x
-	sta (PIPE_DP),y
-	dex
-	dey
-	bpl :oddLoop
-
-
-	inc PIPE_Y_IDX
-	inc PIPE_Y_IDX
-	jmp :loop
-:done
-	jmp DrawPipeDone
-
-
-****************************************
-*** Draw Body - Odd Full version
-DrawPipeBodyOdd
-:loop	lda PIPE_Y_IDX
-	tay
-	lsr	; /2
-	cmp PIPE_BODY_BOT
-	bcs :done
-
-	lda LoLineTable,y
-	sta PIPE_DP
-	lda LoLineTable+1,y
-	sta PIPE_DP+1	; pointer to line on screen
-	
-	sta TXTPAGE1
-*** Version 3 - FULL OPTIMIZATION
-	ldy PIPE_X_IDX
-	;lda #$77	; PipeBody_Main_O
-	;sta (PIPE_DP),y
-	iny
-	lda #$EE
-	sta (PIPE_DP),y
-	iny
-	lda #$CC
-	sta (PIPE_DP),y
-	iny
-	sta (PIPE_DP),y
-	iny
-	lda #$44
-	sta (PIPE_DP),y
-	iny
-	sta (PIPE_DP),y
-	iny
+			; optimized by hand, not perfect, but big help
+		;col 0
+	cpy #PIPE_RCLIP
+	bcs :RCLIP
 	lda #$55
-	sta (PIPE_DP),y
-	iny
+	sta (PIPE_DP0),y
+	sta (PIPE_DP1),y
+	sta (PIPE_DP2),y
+	sta (PIPE_DP3),y
+	iny	;col 2
+	cpy #PIPE_RCLIP
+	bcs :RCLIP
+	lda #$E5
+	sta (PIPE_DP0),y
+	sta (PIPE_DP2),y
+	lda #$5E
+	sta (PIPE_DP1),y
+	sta (PIPE_DP3),y
+	iny	;col 4
+	cpy #PIPE_RCLIP
+	bcs :RCLIP
+	sta (PIPE_DP1),y
+	sta (PIPE_DP3),y
+	lda #$E5
+	sta (PIPE_DP0),y
+	sta (PIPE_DP2),y
+	iny	;col 6
+	cpy #PIPE_RCLIP
+	bcs :RCLIP
+	lda #$C5
+	sta (PIPE_DP0),y
+	sta (PIPE_DP2),y
+	lda #$5C
+	sta (PIPE_DP1),y
+	sta (PIPE_DP3),y
+	iny	;col 8
+	cpy #PIPE_RCLIP
+	bcs :RCLIP
+	sta (PIPE_DP1),y
+	sta (PIPE_DP3),y
+	lda #$C5
+	sta (PIPE_DP0),y
+	sta (PIPE_DP2),y
+	iny	;col 10
+	cpy #PIPE_RCLIP
+	bcs :RCLIP
+	sta (PIPE_DP0),y
+	sta (PIPE_DP2),y
+	lda #$5C
+	sta (PIPE_DP1),y
+	sta (PIPE_DP3),y
+	iny	;col 12
+	cpy #PIPE_RCLIP
+	bcs :RCLIP
+	lda #$45
+	sta (PIPE_DP0),y
+	sta (PIPE_DP2),y
+	lda #$54
+	sta (PIPE_DP1),y
+	sta (PIPE_DP3),y
+	iny	;col 14 (final!)
+	cpy #PIPE_RCLIP
+	bcs :RCLIP
 	lda #$77
-	sta (PIPE_DP),y
-
+	sta (PIPE_DP0),y
+	sta (PIPE_DP1),y
+	sta (PIPE_DP2),y
+	sta (PIPE_DP3),y
+:RCLIP
 
 	sta TXTPAGE2
-*** Version 3 - FULL OPTIMIZATION
-	ldy PIPE_X_IDX
-	iny
-	lda #$AA	; PipeBody_Aux_O
-	sta (PIPE_DP),y
-	iny
-	lda #$77
-	sta (PIPE_DP),y
-	iny
-	sta (PIPE_DP),y
-	iny
-	lda #$66
-	sta (PIPE_DP),y
-	iny
-	sta (PIPE_DP),y
-	iny
-	lda #$22
-	sta (PIPE_DP),y
-	iny
-	lda #$BB
-	sta (PIPE_DP),y
+	ldy PIPE_X_IDX	; y= the x offset... yay dp indexing on 6502
+	iny	; TXTPAGE2 is +1 in "odd" mode
+		;col 1
+	cpy #PIPE_RCLIP
+	bcs :RCLIP2
+	lda #$7A
+	sta (PIPE_DP0),y
+	sta (PIPE_DP2),y
+	lda #$A7
+	sta (PIPE_DP1),y
+	sta (PIPE_DP3),y
+	iny	;col 3
+	cpy #PIPE_RCLIP
+	bcs :RCLIP2
+	lda #$6A
+	sta (PIPE_DP0),y
+	sta (PIPE_DP2),y
+	lda #$A6
+	sta (PIPE_DP1),y
+	sta (PIPE_DP3),y
+	iny	;col 5
+	cpy #PIPE_RCLIP
+	bcs :RCLIP2
+	sta (PIPE_DP1),y
+	sta (PIPE_DP3),y
+	lda #$6A
+	sta (PIPE_DP0),y
+	sta (PIPE_DP2),y
+	iny	;col 7
+	cpy #PIPE_RCLIP
+	bcs :RCLIP2
+	sta (PIPE_DP0),y
+	sta (PIPE_DP2),y
+	lda #$A6
+	sta (PIPE_DP1),y
+	sta (PIPE_DP3),y
+	iny	;col 9
+	cpy #PIPE_RCLIP
+	bcs :RCLIP2
+	lda #$2A
+	sta (PIPE_DP0),y
+	sta (PIPE_DP2),y
+	lda #$A2
+	sta (PIPE_DP1),y
+	sta (PIPE_DP3),y
+	iny	;col 11
+	cpy #PIPE_RCLIP
+	bcs :RCLIP2
+	sta (PIPE_DP1),y
+	sta (PIPE_DP3),y
+	lda #$2A
+	sta (PIPE_DP0),y
+	sta (PIPE_DP2),y
+	iny	;col 13
+	cpy #PIPE_RCLIP
+	bcs :RCLIP2
+	lda #$AA
+	sta (PIPE_DP0),y
+	sta (PIPE_DP1),y
+	sta (PIPE_DP2),y
+	sta (PIPE_DP3),y
+:RCLIP2
+* Handle body 
+	lda #0
+	sta PIPE_Y	; current line
+	lda PIPE_TOP_Y
+	sta PIPE_BODY_BOT
+	jsr DrawPipeBodyOddR
 
-	inc PIPE_Y_IDX
-	inc PIPE_Y_IDX
-	jmp :loop
-	;sec
-	;bcs :loop
-:done	jmp DrawPipeDone
+	ldy PIPE_BOT_Y
+	iny
+	iny
+	sty PIPE_Y	; current line
+	lda #22
+	sta PIPE_BODY_BOT
+	jsr DrawPipeBodyOddR
+
+	rts	; !!! FORMERLY WAS 'jmp DrawPipeDone' !!! 
+		; !!! We are actually returning for parent DrawPipe
 
 
-****************************************
-*** Draw Body - Odd Full & Right version
+
 DrawPipeBodyOddR
-:loop	lda PIPE_Y_IDX
-	tay
-	lsr	; /2
-	cmp PIPE_BODY_BOT
+:loop	ldy PIPE_Y
+	cpy PIPE_BODY_BOT
 	bcs :done
 
-	lda LoLineTable,y
+	lda LoLineTableL,y
 	sta PIPE_DP
-	lda LoLineTable+1,y
+	lda LoLineTableH,y
 	sta PIPE_DP+1	; pointer to line on screen
 	
-
 	sta TXTPAGE1
 *** Version 2.1
 	lda PIPE_X_IDX
@@ -1729,27 +1022,382 @@ DrawPipeBodyOddR
 	dex
 	bpl :evenLoop
 
-	inc PIPE_Y_IDX
-	inc PIPE_Y_IDX
+	inc PIPE_Y
 	jmp :loop
-	;sec
-	;bcs :loop
-:done	jmp DrawPipeDone
+:done	rts
+
+DrawPipeEvenL
+	jsr SetPipeCapPtrs
+	sta TXTPAGE2	
+	lda PIPE_X_IDX	; y= the x offset... yay dp indexing on 6502
+			; optimized by hand, not perfect, but big help
+	clc
+	adc #PIPE_WIDTH/2
+	tax	;stash for below loop
+	tay	
+		;col 14 (rightmost)
+	cpy #PIPE_RCLIP
+	bcs :RCLIP
+	lda #$BB
+	sta (PIPE_DP0),y
+	sta (PIPE_DP1),y
+	sta (PIPE_DP2),y
+	sta (PIPE_DP3),y
+	dey	;col 12
+	cpy #PIPE_RCLIP
+	bcs :RCLIP
+	lda #$2A
+	sta (PIPE_DP0),y
+	sta (PIPE_DP2),y
+	lda #$A2
+	sta (PIPE_DP1),y
+	sta (PIPE_DP3),y
+	dey	;col 10
+	cpy #PIPE_RCLIP
+	bcs :RCLIP
+	lda #$6A
+	sta (PIPE_DP0),y
+	sta (PIPE_DP2),y
+	lda #$A6
+	sta (PIPE_DP1),y
+	sta (PIPE_DP3),y
+	dey	;col 8
+	cpy #PIPE_RCLIP
+	bcs :RCLIP
+	sta (PIPE_DP1),y
+	sta (PIPE_DP3),y
+	lda #$6A
+	sta (PIPE_DP0),y
+	sta (PIPE_DP2),y
+	dey	;col 6
+	cpy #PIPE_RCLIP
+	bcs :RCLIP
+	sta (PIPE_DP0),y
+	sta (PIPE_DP2),y
+	lda #$A6
+	sta (PIPE_DP1),y
+	sta (PIPE_DP3),y
+	dey	;col 4
+	cpy #PIPE_RCLIP
+	bcs :RCLIP
+	lda #$7A
+	sta (PIPE_DP0),y
+	sta (PIPE_DP2),y
+	lda #$A7
+	sta (PIPE_DP1),y
+	sta (PIPE_DP3),y
+	dey	;col 2
+	cpy #PIPE_RCLIP
+	bcs :RCLIP
+	sta (PIPE_DP1),y
+	sta (PIPE_DP3),y
+	lda #$7A
+	sta (PIPE_DP0),y
+	sta (PIPE_DP2),y
+	dey	;col 0 (final! leftmost)
+	cpy #PIPE_RCLIP
+	bcs :RCLIP
+	lda #$AA
+	sta (PIPE_DP0),y
+	sta (PIPE_DP1),y
+	sta (PIPE_DP2),y
+	sta (PIPE_DP3),y
+:RCLIP
+	sta TXTPAGE1
+	txa
+	tay
+	dey
+		;col 13
+	cpy #PIPE_RCLIP
+	bcs :RCLIP2
+	lda #$55
+	sta (PIPE_DP0),y
+	sta (PIPE_DP1),y
+	sta (PIPE_DP2),y
+	sta (PIPE_DP3),y
+	dey	;col 11
+	cpy #PIPE_RCLIP
+	bcs :RCLIP2
+	lda #$45
+	sta (PIPE_DP0),y
+	sta (PIPE_DP2),y
+	lda #$54
+	sta (PIPE_DP1),y
+	sta (PIPE_DP3),y
+	dey	;col 9
+	cpy #PIPE_RCLIP
+	bcs :RCLIP2
+	sta (PIPE_DP1),y
+	sta (PIPE_DP3),y
+	lda #$45
+	sta (PIPE_DP0),y
+	sta (PIPE_DP2),y
+	dey	;col 7
+	cpy #PIPE_RCLIP
+	bcs :RCLIP2
+	lda #$C5
+	sta (PIPE_DP0),y
+	sta (PIPE_DP2),y
+	lda #$5C
+	sta (PIPE_DP1),y
+	sta (PIPE_DP3),y
+	dey	;col 5
+	cpy #PIPE_RCLIP
+	bcs :RCLIP2
+	sta (PIPE_DP1),y
+	sta (PIPE_DP3),y
+	lda #$C5
+	sta (PIPE_DP0),y
+	sta (PIPE_DP2),y
+	dey	;col 3
+	cpy #PIPE_RCLIP
+	bcs :RCLIP2
+	sta (PIPE_DP0),y
+	sta (PIPE_DP2),y
+	lda #$5C
+	sta (PIPE_DP1),y
+	sta (PIPE_DP3),y
+	dey	;col 1
+	cpy #PIPE_RCLIP
+	bcs :RCLIP2
+	lda #$E5
+	sta (PIPE_DP0),y
+	sta (PIPE_DP2),y
+	lda #$5E
+	sta (PIPE_DP1),y
+	sta (PIPE_DP3),y
+:RCLIP2
+* Handle body 
+	lda #0
+	sta PIPE_Y	; current line
+	lda PIPE_TOP_Y
+	sta PIPE_BODY_BOT
+	jsr DrawPipeBodyEvenL
+
+	ldy PIPE_BOT_Y
+	iny
+	iny
+	sty PIPE_Y	; current line
+	lda #22
+	sta PIPE_BODY_BOT
+	jsr DrawPipeBodyEvenL
+
+	rts	; !!! FORMERLY WAS 'jmp DrawPipeDone' !!! 
+		; !!! We are actually returning for parent DrawPipe
 
 
 
-********************************
-*** Draw Body - Odd Left version
-DrawPipeBodyOddL
-:loop	lda PIPE_Y_IDX
-	lsr	; *2
-	cmp PIPE_BODY_BOT
+
+DrawPipeBodyEvenL
+:loop	ldy PIPE_Y
+	cpy PIPE_BODY_BOT
 	beq :done
-	ldy PIPE_Y_IDX
 
-	lda LoLineTable,y
+	lda LoLineTableL,y
 	sta PIPE_DP
-	lda LoLineTable+1,y
+	lda LoLineTableH,y
+	sta PIPE_DP+1	; pointer to line on screen
+
+	sta TXTPAGE2
+	lda PIPE_X_IDX
+	clc
+	adc #PIPE_WIDTH/2
+	bmi :done
+	pha	;PHA for below loop
+	tay	
+	ldx #PIPE_WIDTH/2
+	
+:evenLoop	lda PipeBody_Aux_E,x
+	sta (PIPE_DP),y
+	dex
+	dey
+	bpl :evenLoop
+
+	sta TXTPAGE1
+	pla	;PLA from above
+	tay	
+	ldx #PIPE_WIDTH/2
+
+:oddLoop	lda PipeBody_Main_E,x
+	sta (PIPE_DP),y
+	dex
+	dey
+	bpl :oddLoop
+
+
+	inc PIPE_Y
+	jmp :loop
+:done	rts
+
+
+
+
+DrawPipeOddL	
+	jsr SetPipeCapPtrs
+	sta TXTPAGE1	
+	lda PIPE_X_IDX	; y= the x offset... yay dp indexing on 6502
+			; optimized by hand, not perfect, but big help
+	clc
+	adc #PIPE_WIDTH/2
+	tax	;stash for below loop
+	tay	
+		;col 14 (rightmost)
+	cpy #PIPE_RCLIP
+	bcs :RCLIP
+	lda #$77
+	sta (PIPE_DP0),y
+	sta (PIPE_DP1),y
+	sta (PIPE_DP2),y
+	sta (PIPE_DP3),y
+	dey	;col 12
+	cpy #PIPE_RCLIP
+	bcs :RCLIP
+	lda #$45
+	sta (PIPE_DP0),y
+	sta (PIPE_DP2),y
+	lda #$54
+	sta (PIPE_DP1),y
+	sta (PIPE_DP3),y
+	dey	;col 10
+	cpy #PIPE_RCLIP
+	bcs :RCLIP
+	lda #$C5
+	sta (PIPE_DP0),y
+	sta (PIPE_DP2),y
+	lda #$5C
+	sta (PIPE_DP1),y
+	sta (PIPE_DP3),y
+	dey	;col 8
+	cpy #PIPE_RCLIP
+	bcs :RCLIP
+	sta (PIPE_DP1),y
+	sta (PIPE_DP3),y
+	lda #$C5
+	sta (PIPE_DP0),y
+	sta (PIPE_DP2),y
+	dey	;col 6
+	cpy #PIPE_RCLIP
+	bcs :RCLIP
+	sta (PIPE_DP0),y
+	sta (PIPE_DP2),y
+	lda #$5C
+	sta (PIPE_DP1),y
+	sta (PIPE_DP3),y
+	dey	;col 4
+	cpy #PIPE_RCLIP
+	bcs :RCLIP
+	lda #$E5
+	sta (PIPE_DP0),y
+	sta (PIPE_DP2),y
+	lda #$5E
+	sta (PIPE_DP1),y
+	sta (PIPE_DP3),y
+	dey	;col 2
+	cpy #PIPE_RCLIP
+	bcs :RCLIP
+	sta (PIPE_DP1),y
+	sta (PIPE_DP3),y
+	lda #$E5
+	sta (PIPE_DP0),y
+	sta (PIPE_DP2),y
+	dey	;col 0 (final! leftmost)
+	cpy #PIPE_RCLIP
+	bcs :RCLIP
+	lda #$55
+	sta (PIPE_DP0),y
+	sta (PIPE_DP1),y
+	sta (PIPE_DP2),y
+	sta (PIPE_DP3),y
+:RCLIP
+	sta TXTPAGE2
+	txa
+	tay
+		;col 13
+	cpy #PIPE_RCLIP
+	bcs :RCLIP2
+	lda #$AA
+	sta (PIPE_DP0),y
+	sta (PIPE_DP1),y
+	sta (PIPE_DP2),y
+	sta (PIPE_DP3),y
+	dey	;col 11
+	cpy #PIPE_RCLIP
+	bcs :RCLIP2
+	lda #$2A
+	sta (PIPE_DP0),y
+	sta (PIPE_DP2),y
+	lda #$A2
+	sta (PIPE_DP1),y
+	sta (PIPE_DP3),y
+	dey	;col 9
+	cpy #PIPE_RCLIP
+	bcs :RCLIP2
+	sta (PIPE_DP1),y
+	sta (PIPE_DP3),y
+	lda #$2A
+	sta (PIPE_DP0),y
+	sta (PIPE_DP2),y
+	dey	;col 7
+	cpy #PIPE_RCLIP
+	bcs :RCLIP2
+	lda #$6A
+	sta (PIPE_DP0),y
+	sta (PIPE_DP2),y
+	lda #$A6
+	sta (PIPE_DP1),y
+	sta (PIPE_DP3),y
+	dey	;col 5
+	cpy #PIPE_RCLIP
+	bcs :RCLIP2
+	sta (PIPE_DP1),y
+	sta (PIPE_DP3),y
+	lda #$6A
+	sta (PIPE_DP0),y
+	sta (PIPE_DP2),y
+	dey	;col 3
+	cpy #PIPE_RCLIP
+	bcs :RCLIP2
+	sta (PIPE_DP0),y
+	sta (PIPE_DP2),y
+	lda #$A6
+	sta (PIPE_DP1),y
+	sta (PIPE_DP3),y
+	dey	;col 1
+	cpy #PIPE_RCLIP
+	bcs :RCLIP2
+	lda #$7A
+	sta (PIPE_DP0),y
+	sta (PIPE_DP2),y
+	lda #$A7
+	sta (PIPE_DP1),y
+	sta (PIPE_DP3),y
+:RCLIP2
+* Handle body 
+	lda #0
+	sta PIPE_Y	; current line
+	lda PIPE_TOP_Y
+	sta PIPE_BODY_BOT
+	jsr DrawPipeBodyOddL
+
+	ldy PIPE_BOT_Y
+	iny
+	iny
+	sty PIPE_Y	; current line
+	lda #22
+	sta PIPE_BODY_BOT
+	jsr DrawPipeBodyOddL
+
+	rts	; !!! FORMERLY WAS 'jmp DrawPipeDone' !!! 
+		; !!! We are actually returning for parent DrawPipe
+
+DrawPipeBodyOddL
+:loop	ldy PIPE_Y
+	cpy PIPE_BODY_BOT
+	beq :done
+
+	lda LoLineTableL,y
+	sta PIPE_DP
+	lda LoLineTableH,y
 	sta PIPE_DP+1	; pointer to line on screen
 
 
@@ -1768,7 +1416,6 @@ DrawPipeBodyOddL
 	dey
 	bpl :evenLoop
 
-
 	sta TXTPAGE2
 	pla	;PLA from above
 	tay	
@@ -1780,10 +1427,28 @@ DrawPipeBodyOddL
 	dey
 	bpl :oddLoop
 
-	inc PIPE_Y_IDX
-	inc PIPE_Y_IDX
+	inc PIPE_Y
 	jmp :loop
 
-:done	jmp DrawPipeDone
+:done	rts
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 

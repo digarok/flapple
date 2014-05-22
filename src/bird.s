@@ -27,20 +27,22 @@ AUX_BG_COLOR	db #$BB
 MAIN_BG_COLOR	db #$77
 
 
-*#BIRD_X	db #17	; (0-79)
 BIRD_X	equ #17
-BIRD_Y	db #17	; (0-47)
-BIRD_Y_OLD	db #17	; used for undraw - to decouple input routine from sequence
+BIRD_Y_INIT	equ #17
+BIRD_Y	db #BIRD_Y_INIT	; (0-47)
+BIRD_Y_OLD	db #BIRD_Y_INIT	; used for undraw - to decouple input routine from sequence
 BIRD_FLAP	db #0	; 0=down 1=up
-BIRD_FLAP_RATE equ #3
+BIRD_FLAP_RATE equ #5
 BIRD_FLAP_CNT	db 0
+
+**
 
 FlapBird	
 	inc BIRD_FLAP_CNT
 	lda BIRD_FLAP_CNT
 	cmp #BIRD_FLAP_RATE
 	bcs :flapIt
-	jmp FlapBirdDone
+	rts
 :flapIt	
 	lda #0
 	sta BIRD_FLAP_CNT
@@ -50,8 +52,8 @@ FlapBird
 	bne :noFlip
 	lda #0
 	sta BIRD_FLAP
-:noFlip
-	jmp FlapBirdDone
+:noFlip	rts
+
 
 ***** EVEN then ODD, i.e. AUX then MAIN
 BIRD_WUP_E_PIXEL
@@ -206,8 +208,8 @@ UndrawBird	lda BIRD_Y_OLD
 :wipe2e	sta (SPRITE_SCREEN_P),y
 	sta (SPRITE_SCREEN_P2),y
 	sta (SPRITE_SCREEN_P3),y
+	rts
 
-	jmp UndrawBirdDone
 
 
 
@@ -286,8 +288,7 @@ UndrawBird	lda BIRD_Y_OLD
 	sta (SPRITE_SCREEN_P2),y
 	sta (SPRITE_SCREEN_P3),y
 	sta (SPRITE_SCREEN_P4),y
-
-	jmp UndrawBirdDone
+	rts
 
 DrawBird
 	lda BIRD_Y
@@ -324,7 +325,7 @@ DrawBird
 	jmp :drawSprite
 :drawSprite
 	jsr DrawSpriteBetter
-	jmp DrawBirdDone 
+	rts
 
 *** MAKE IT WORK
 
@@ -377,9 +378,6 @@ DD_EVEN	lda #0
 	sta TXTPAGE2
 	
 :lineLoop	
-	;ldy SPRITE_X_IDX	; 
-	;lda (SPRITE_IMASK_P),y
-	;beq donePixel
 
 :collisionCheckDrawer
 	ldy SPRITE_SCREEN_IDX	; GET SCREEN PIXELS
