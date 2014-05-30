@@ -394,7 +394,6 @@ DD_EVEN	lda #0
 	beq :noCollision
 	lda #1
 	sta SPRITE_COLLISION
-	sta $c034
 :noCollision
 :doPixels	pla		; Y=SPRITE X   A=BG DATA
 	and (SPRITE_MASK_P),y	; CUT OUT SPRITE IN BG DATA
@@ -440,7 +439,6 @@ DD_ODD
 	beq :noCollision
 	lda #1
 	sta SPRITE_COLLISION
-	sta $c034
 
 :noCollision	
 :doPixels	pla		; Y=SPRITE X   A=BG DATA

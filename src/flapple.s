@@ -23,27 +23,39 @@ CopyPtr       MAC
 
 
 Main	
-	jsr DetectIIgs
-	jsr InitState	;@todo: IIc vblank code
+	jsr DetectMachine	; also inits vbl
+	jsr LoadHiScore
+	jsr DL_SetDLRMode
 
 Title	
 	jsr VBlank
-	jsr DL_SetDLRMode
-	lda #$77
+	lda #$00
 	jsr DL_Clear
+	ldx #3	;slight pause
+	jsr VBlankX
+	lda #$F6
+	ldx #$27
+	ldy #$77
+	jsr DL_WipeIn
 	jsr DrawFlogo
-	jsr WaitKey
+	jsr PlayFlappySong ;@todo throttle
+	ldx #60
+	ldy #2
+	jsr WaitKeyXY
 
-PreGameLoop	
+PreGameLoop
+** INIT ALL GAME STATE ITEMS
 	lda #BIRD_Y_INIT
 	sta BIRD_Y
 	sta BIRD_Y_OLD
 	lda #0
 	sta SPRITE_COLLISION
-
-
+	sta PreGameTick
+	sta PreGameTick+1
+	sta PreGameText
 	sta ScoreLo
 	sta ScoreHi
+
 
 	lda #0
 	ldx #3
@@ -52,85 +64,180 @@ PreGameLoop
 	dex
 	bpl :clearPipes
 
-
+** CLEAR SCREEN - SETUP BIRD
 	jsr VBlank
-	jsr DL_SetDLRMode
 	lda #$77
 	jsr DL_Clear
-** taken from DrawBird
-** these don't really change so saving some cycles
+
 	lda #BIRD_X
 	sta SPRITE_X
 	lda #5
 	sta SPRITE_W	; all birds are same width
+
+** WAIT FOR PLAYER TO HIT SOMETHING
 :noKey	jsr VBlank
 	jsr UndrawBird
 	jsr DrawBird
 	jsr UpdateGrass
 	jsr FlapBird
-:kloop	lda KEY
+
+	inc PreGameTick
+	bne :noOverflow
+	inc PreGameTick+1
+:noOverflow	lda PreGameTick
+	cmp #60
+	bcc :skipText
+	lda PreGameText
+	bne :skipText
+	inc PreGameText
+	jsr DrawTap
+:skipText
+	lda PreGameTick+1
+	cmp #2
+	bne :checkKey
+
+	jmp Title
+
+:checkKey	lda KEY
 	bpl :noKey
 :key	sta STROBE
+	lda #$77
+	jsr DL_Clear
+	jmp GameLoop
 
+PreGameTick	dw 0
 
+PreGameText	db 0
+GSBORDER      da _GSBORDER
+_GSBORDER	db 0
 
 
 GameLoop	
 	jsr VBlank
-	lda #$f
-	sta $c034
 
 	jsr UndrawBird
-	lda #$4
-	sta $c034
 	jsr DrawPipes
-
-	lda #$7
-	sta $c034
-	jmp DrawScore
-DrawScoreDone
-	lda #$d
-	sta $c034
+	jsr DrawScore
 	jsr DrawBird
-
-	lda #$8
-	sta $c034
-*:kloop	lda KEY
-*	bpl DONTUPDATEPIPES
-*:key	sta STROBE
-
 	jmp UpdatePipes
 UpdatePipesDone
 DONTUPDATEPIPES
 	jsr FlapBird
 	jsr UpdateGrass
 
-	jmp HandleInput
+	jmp HandleInput	; Also plays flap!
 HandleInputDone
 	lda SPRITE_COLLISION
 	bne GAME_OVER
 
-	lda #$0
-	sta $c034
-	;jsr WaitKey
 	lda QuitFlag
 	beq GameLoop
 	jmp Quit
 
 GAME_OVER	
 	jsr DrawPipes
-NOISE	ldx #$f0	;LENGTH OF NOISE BURST
-	lda #10	;NUMBER OF NOISE BURSTS
+	jsr DrawScore
+	jsr DrawSplosion
+	jsr SND_Static
+	jsr UpdateHiScore
+	jsr DrawPlaqueHi
+	jsr DrawPlaqueLo
+	jsr DrawYou
+	jsr DrawHi
+
+	ldx #19
+	ldy #11
+	jsr DrawHiScore
+
+	ldx #19
+	ldy #4
+	jsr DrawYouScore
+
+	sta STROBE	;clear errant flap hits
+	ldx #60
+	ldy #5
+	jsr WaitKeyXY
+	bcc :noKey
+	jmp PreGameLoop
+:noKey	
+	lda #$FA
+	ldx #$50
+	ldy #$00
+	jsr DL_WipeIn
+	jmp Title
+
+
+SND_Flap	jmp SND_Flap2
+SND_Flap1
+*	lda #5
+*	sta $c034
+	ldx #$1c	;LENGTH OF NOISE BURST
+:spkLoop	lda SPEAKER	;TOGGLE SPEAKER
+	txa
+	asl
+	asl
+	tay
+
+:waitLoop	dey	;DELAY LOOP FOR PULSE WIDTH
+	bne :waitLoop
+	dex	;GET NEXT PULSE OF THIS NOISE BURST
+	bne :spkLoop
+*	ldx #$0	;LENGTH OF NOISE BURST
+*	stx $c034
+	rts
+
+SND_Flap2
+*	lda #5
+*	sta $c034
+	ldx #$16	;LENGTH OF NOISE BURST
+:spkLoop	sta SPEAKER	;TOGGLE SPEAKER
+	txa
+	clc 
+	adc #$30
+	tay
+
+:waitLoop	dey	;DELAY LOOP FOR PULSE WIDTH
+	bne :waitLoop
+	dex	;GET NEXT PULSE OF THIS NOISE BURST
+	bne :spkLoop
+*	ldx #$0	;LENGTH OF NOISE BURST
+*	stx $c034
+	rts
+
+
+SND_Static
+	ldx #$80	;LENGTH OF NOISE BURST
 :spkLoop	lda SPEAKER	;TOGGLE SPEAKER
 	jsr GetRand
+	and #%1000000
 	tay
 *	ldy $BA00,X	;GET PULSE WIDTH PSEUDO-RANDOMLY
 :waitLoop	dey	;DELAY LOOP FOR PULSE WIDTH
 	bne :waitLoop
 	dex	;GET NEXT PULSE OF THIS NOISE BURST
 	bne :spkLoop
-	jsr WaitKey
-	jmp PreGameLoop
+	
+	ldx #$60	;LENGTH OF NOISE BURST
+:spkLoop2	lda SPEAKER	;TOGGLE SPEAKER
+	jsr GetRand
+	tay
+*	ldy $BA00,X	;GET PULSE WIDTH PSEUDO-RANDOMLY
+:waitLoop2	dey	;DELAY LOOP FOR PULSE WIDTH
+	bne :waitLoop2
+	dex	;GET NEXT PULSE OF THIS NOISE BURST
+	bne :spkLoop2
+
+	ldx #$80	;LENGTH OF NOISE BURST
+:spkLoop3	lda SPEAKER	;TOGGLE SPEAKER
+	jsr GetRand
+	lsr
+	tay
+:waitLoop3	dey	;DELAY LOOP FOR PULSE WIDTH
+	bne :waitLoop3
+	dex	;GET NEXT PULSE OF THIS NOISE BURST
+	bne :spkLoop3
+
+	rts
 
 HandleInput
 	lda BIRD_Y
@@ -146,7 +253,7 @@ HandleInput
 	bne :keyDone
 :noQuit
 	cmp #"Z"
-	bne :noFlap
+	beq :noFlap
 :flap	lda #40
 	sta BIRD_VELOCITY
 	bne :handleBird
@@ -160,9 +267,10 @@ HandleInput
 	cmp #37
 	bcc :notTop
 	dec BIRD_Y	; +2
+	jsr SND_Flap
 	clc
 	bcc :boundsCheck
-:notTop	cmp #33
+:notTop	cmp #34
 	bcs :boundsCheck
 	cmp #2
 	bcc :DOWN
@@ -187,15 +295,141 @@ HandleInput
 BIRD_VELOCITY	db 0	; in two's compliment {-3,3} 
 BIRD_VELOCITY_MAX equ #20
 BIRD_VELOCITY_MIN equ #%111111111	; -1
+LoadHiScore	jsr CreateHiScoreFile
+	bcs :error
+	jsr OpenHiScoreFile
+	bcs :error
+	jsr ReadHiScoreFile
+	jsr CloseHiScoreFile
+:error	rts
+
+SaveHiScore	jsr CreateHiScoreFile
+	jsr OpenHiScoreFile
+	bcc :noError
+	rts
+:noError	jsr WriteHiScoreFile
+	jsr CloseHiScoreFile
+	rts
+
+CreateHiScoreFile
+	jsr MLI
+	dfb $C0
+	da CreateHiScoreParam
+	bcs :error
+	rts
+:error	cmp #$47	; dup filename - already created?
+	bne :bail
+	clc	; this is ok, clear error state
+:bail	rts	; oh well... just carry on in session 
+
+OpenHiScoreFile
+	jsr MLI
+	dfb $C8	; OPEN P8 request ($C8)
+	da OpenHiScoreParam
+	bcc :noError
+	brk $10
+	cmp $46	; "$46 - File not found"
+	beq CreateHiScoreFile ; let's create it if we can and try again
+	rts	; return with error state
+:noError	rts
 
 
-QuitFlag	db 0	; set to 1 to quit
+ReadHiScoreFile
+	lda #0
+	sta IOBuffer
+	sta IOBuffer+1	;zero load area, just in case
+	lda OpenRefNum
+	sta ReadRefNum
+	jsr MLI
+	dfb $CA	; READ P8 request ($CA)
+	da ReadHiScoreParam
+	bcs :readFail
+
+	lda ReadResult
+	lda IOBuffer
+	sta HiScoreHi
+	lda IOBuffer+1
+	sta HiScoreLo
+	rts
+
+:readFail	cmp #$4C	;eof - ok on new file
+	beq :giveUp	
+
+	brk $99	; uhm
+:giveUp	rts	; return with error state
+
+
+CloseHiScoreFile
+	lda OpenRefNum
+	sta CloseRefNum
+	jsr MLI
+	dfb $CC	; CLOSE P8 request ($CC)
+	da CloseHiScoreParam
+	bcc :ret
+:ret	rts	; return with error state - not checked!
+
+WriteHiScoreFile
+	lda HiScoreHi
+	sta IOBuffer
+	lda HiScoreLo
+	sta IOBuffer+1
+	lda OpenRefNum
+	sta WriteRefNum
+	jsr MLI
+	dfb $CB	; READ P8 request ($CB)
+	da WriteHiScoreParam
+	bcs :writeFail
+	lda WriteResult
+:writeFail	
+	rts
+
+
+OpenHiScoreParam
+	dfb #$03	; number of parameters 
+	dw HiScoreFile
+              dw $900 
+OpenRefNum db 0	; assigned by open call
+HiScoreFile	str 'flaphi'
+
+
+CloseHiScoreParam
+	dfb #$01	; number of parameters 
+CloseRefNum	db 0
+
+
+CreateHiScoreParam
+	dfb  7	; number of parameters
+	dw   HiScoreFile	; pointer to filename
+	dfb  $C3      ; normal (full) file access permitted
+	dfb  $06      ; make it a $06 (bin) file
+	dfb  $00,$00  ; AUX_TYPE, not used
+	dfb  $01      ; standard file
+	dfb  $00,$00  ; creation date (unused)
+	dfb  $00,$00  ; creation time (unused)
+
+
+ReadHiScoreParam
+	dfb  4        ; number of parameters
+ReadRefNum	db 0	; set by open subroutine above
+	da IOBuffer
+	dw #2	; request count (length)
+ReadResult	dw 0	; result count (amount actually read before EOF)
+
+
+WriteHiScoreParam
+	dfb  4        ; number of parameters
+WriteRefNum	db 0	; set by open subroutine above
+	da IOBuffer
+	dw #2	; request count (length)
+WriteResult	dw 0	; result count (amount transferred)
+
 
 Quit	jsr MLI	; first actual command, call ProDOS vector
-	dfb $65	; with "quit" request ($65)
+	dfb $65	; QUIT P8 request ($65)
 	da QuitParm
 	bcs Error
 	brk $00	; shouldn't ever  here!
+Error	brk $00	; shouldn't be here either
 
 QuitParm	dfb 4	; number of parameters
 	dfb 0	; standard quit type
@@ -204,7 +438,11 @@ QuitParm	dfb 4	; number of parameters
 	da $0000	; not used
 
 
-Error	brk $00	; shouldn't be here either
+QuitFlag	db 0	; set to 1 to quit
+
+	ds \
+IOBuffer	ds 512
+
 
 
 HandleInputTest
@@ -249,8 +487,7 @@ DrawScore	lda ScoreLo
 	sta TXTPAGE1
 	sta Lo01+18
 	sta Lo02+18
-	jmp DrawScoreDone
-
+	rts
 
 ** HANDLE HIGH SCORE	
 UpdateHiScore
@@ -268,6 +505,7 @@ UpdateHiScore
 	sta HiScoreHi
 	lda ScoreLo
 	sta HiScoreLo
+	jsr SaveHiScore
 :noHighScore	rts
 
 
@@ -479,14 +717,23 @@ WaitKey
 	sta STROBE
 	rts
 
-WaitSmart
-:kloop	lda KEY
-	bpl :kloop
-	sta STROBE
+WaitKeyXY	
+	stx ]_waitX
+:kloop	jsr VBlank
+	lda KEY
+	bmi :kpress
+	dex
+	bne :kloop
+	ldx ]_waitX
+	dey
+	bne :kloop
+	clc
 	rts
 
-_WaitSmartMode db 0	;0 = no pause until magickey
-		;1 = always pause
+:kpress	sta STROBE
+	sec
+	rts
+]_waitX	db	0
 
 **************************************************
 * See if we're running on a IIgs
@@ -494,85 +741,42 @@ _WaitSmartMode db 0	;0 = no pause until magickey
 *   Miscellaneous #7
 *   Apple II Family Identification
 **************************************************
-DetectIIgs	
+DetectMachine
 	sec	;Set carry bit (flag)
 	jsr $FE1F	;Call to the monitor
 	bcs :oldmachine    ;If carry is still set, then old machine
 *	bcc :newmachine    ;If carry is clear, then new machine
-:newmachine   lda #1
+:newmachine   asl _compType	;multiply vblank detection val $7E * 2
+	lda #1
 	sta GMachineIIgs
 	rts
 :oldmachine	lda #0
 	sta GMachineIIgs
 	rts
 
-InitState
-	lda GMachineIIgs
-	beq :IIe
-	rts
-:IIe	rts	
-
 GMachineIIgs  dw 0
 
-VBlankSafe	
-*	pha
-*	phx
-*	phy
-	jsr VBlank
-*	ply
-*	plx
-*	pla
-	rts
-
-VBlank	lda _vblType
-	bne :IIc
-	jsr VBlankNormal
-	rts
-:IIc	rts
-
-_vblType	db 0	; 0 - normal, 1 - IIc
 
 **************************************************
 * Wait for vertical blanking interval - IIe/IIgs
 **************************************************
-VBlankNormal
-VBlankGS2	
-	lda #0	; Wait for VBL to start
-	sta $c034
-	lda #$FE
-:vblInProgress	cmp RDVBLBAR
-	bmi :vblInProgress
-	rts
-	lda #7	; Wait for VBL to start
-	sta $c034
-:vblWaitForStart	cmp RDVBLBAR
-	bpl :vblWaitForStart
-
+VBlankX	lda _compType
+:vblActive	cmp RDVBLBAR	; make sure we wait for the current one to stop
+	bpl :vblActive ; in case it got launched in rapid succession
+:screenActive cmp RDVBLBAR
+	bmi :screenActive
+	dex
+	bne :vblActive
 	rts
 
-
-VBlankGS	lda #0
-	sta $c034
-	lda #$FE
-:vblInProgress	cmp RDVBLBAR
-	bmi :vblInProgress
-	lda #1
-	sta $c034
-	lda #$FE
-:vblWaitForStart	cmp RDVBLBAR
-	bpl :vblWaitForStart
-	lda #2
-	sta $c034
+VBlank	lda _compType
+:vblActive	cmp RDVBLBAR	; make sure we wait for the current one to stop
+	bpl :vblActive ; in case it got launched in rapid succession
+:screenActive cmp RDVBLBAR
+	bmi :screenActive
 	rts
 
-
-
-:loop1	lda RDVBLBAR
-	bpl :loop1 ; not VBL
-	rts
-:loop	lda $c019
-	bpl :loop ;wait for beginning of VBL interval
-	rts
+_compType	db #$7e	; $7e - IIe ; $FE - IIgs 
 
 
 
@@ -583,4 +787,5 @@ VBlankGS	lda #0
 	use dlrlib
 	use pipes
 	use numbers
+	use soundengine
 	use bird

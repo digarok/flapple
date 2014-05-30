@@ -48,11 +48,10 @@ DrawSpriteBetter
 	lda #0 
 	sta SPRITE_X_IDX
 :drawLine	lda SPRITE_Y	;
-	asl	; *2
 	tay
-	lda LoLineTable,y	; SET SCREEN LINE
+	lda LoLineTableL,y	; SET SCREEN LINE
 	sta SPRITE_SCREEN_P
-	lda LoLineTable+1,y
+	lda LoLineTableH,y
 	sta SPRITE_SCREEN_P+1
 
 	lda SPRITE_X		; ADD IN X OFFSET TO SCREEN POSITION
@@ -93,7 +92,7 @@ DD_EVEN	lda #0
 	beq :noCollision
 	cmp #$0B
 	beq :noCollision
-	lda #9
+	lda #1
 	sta SPRITE_COLLISION
 	sta $c034
 
@@ -139,7 +138,7 @@ DD_ODD
 	beq :noCollision
 	cmp #$07
 	beq :noCollision
-	lda #9
+	lda #1
 	sta SPRITE_COLLISION
 	sta $c034
 
