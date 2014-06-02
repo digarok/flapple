@@ -16,7 +16,11 @@ PlayFlappySong
 	jsr VBlankX
 :nextNote	iny
 	iny
-	clc 
+	lda KEY	; allow user to skip my totally awesome song
+	bpl :noKey	
+	sta STROBE
+	rts
+:noKey	clc 
 	bcc :loop
 :done	rts
 

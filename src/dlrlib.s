@@ -502,16 +502,6 @@ DrawBigNumber
 	
 
 
-DrawPlaqueHi
-	lda #3
-	sta SPR_Y
-	jmp DrawPlaqueShared
-DrawPlaqueLo
-	lda #10
-	sta SPR_Y
-	jmp DrawPlaqueShared
-
-
 DrawPlaqueShared
 	lda #11
 	sta SPR_X

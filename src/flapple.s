@@ -38,7 +38,12 @@ Title
 	ldy #$77
 	jsr DL_WipeIn
 	jsr DrawFlogo
+	lda FlogoCount
+	and #%00000011 ; every 4 times?
+	bne :noSongForYou
 	jsr PlayFlappySong ;@todo throttle
+:noSongForYou	
+	inc FlogoCount
 	ldx #60
 	ldy #2
 	jsr WaitKeyXY
@@ -96,7 +101,7 @@ PreGameLoop
 	cmp #2
 	bne :checkKey
 
-	jmp Title
+	jmp HiScreen
 
 :checkKey	lda KEY
 	bpl :noKey
@@ -140,8 +145,13 @@ GAME_OVER
 	jsr DrawSplosion
 	jsr SND_Static
 	jsr UpdateHiScore
-	jsr DrawPlaqueHi
-	jsr DrawPlaqueLo
+	lda #3
+	sta SPR_Y
+	jsr DrawPlaqueShared
+	lda #10
+	sta SPR_Y
+	jsr DrawPlaqueShared
+
 	jsr DrawYou
 	jsr DrawHi
 
@@ -158,14 +168,37 @@ GAME_OVER
 	ldy #5
 	jsr WaitKeyXY
 	bcc :noKey
-	jmp PreGameLoop
+	lda QuitFlag
+	beq :noQuit
+	jmp Quit
+:noQuit	jmp PreGameLoop
 :noKey	
 	lda #$FA
 	ldx #$50
 	ldy #$00
 	jsr DL_WipeIn
 	jmp Title
-
+HiScreen
+	jsr GetRand
+	jsr DL_Clear
+	lda #10
+	sta SPR_Y
+	jsr DrawPlaqueShared
+	jsr DrawHi
+	ldx #19
+	ldy #11
+	jsr DrawHiScore
+	ldx #60
+	ldy #5
+	jsr WaitKeyXY
+	bcc :noKey
+	lda QuitFlag
+	beq :noQuit
+	jmp Quit
+:noQuit	jmp PreGameLoop
+:noKey	jmp Title
+	
+FlogoCount	db 0	; used to throttle how often song is played
 
 SND_Flap	jmp SND_Flap2
 SND_Flap1
@@ -246,14 +279,9 @@ HandleInput
 :kloop	lda KEY
 	bpl :noFlap
 :key	sta STROBE
-	cmp #"Q"
-	bne :noQuit
-	lda #1
-	sta QuitFlag
-	bne :keyDone
-:noQuit
-	cmp #"Z"
-	beq :noFlap
+	jsr QuitKeyCheck
+	jsr PauseKeyCheck ; returns 0 when there was a pause
+	beq :noFlap	
 :flap	lda #40
 	sta BIRD_VELOCITY
 	bne :handleBird
@@ -270,7 +298,7 @@ HandleInput
 	jsr SND_Flap
 	clc
 	bcc :boundsCheck
-:notTop	cmp #34
+:notTop	cmp #36
 	bcs :boundsCheck
 	cmp #2
 	bcc :DOWN
@@ -291,6 +319,34 @@ HandleInput
 	sta BIRD_Y
 :keyDone	jmp HandleInputDone
 
+* A= key
+QuitKeyCheck	cmp #"q"
+	beq :quitHit
+	cmp #"Q"
+	beq :quitHit
+	rts
+:quitHit	lda #1
+	sta QuitFlag
+	rts
+PauseKeyCheck	cmp #"p"
+	beq :pauseHit
+	cmp #"P"
+	beq :pauseHit
+	cmp #$9b	; ESC KEY
+	beq :pauseHit
+	rts
+:pauseHit	jsr WaitKey	; simply pause until key is hit
+	cmp #"t"	
+	bne :notTelling ; totally secret sauce
+	sta $c051
+:notTelling
+	cmp #"T"
+	bne :meNeither ; secret un-sauce
+	jsr DL_SetDLRMode
+:meNeither
+	jsr QuitKeyCheck ; they can quit from paused game
+	lda #0
+	rts
 
 BIRD_VELOCITY	db 0	; in two's compliment {-3,3} 
 BIRD_VELOCITY_MAX equ #20
@@ -445,23 +501,6 @@ IOBuffer	ds 512
 
 
 
-HandleInputTest
-	lda BIRD_Y
-	sta BIRD_Y_OLD
-:kloop	lda KEY
-	bpl :noKey
-:key	sta STROBE
-	cmp #"A"
-	beq :up
-	cmp #"B"
-	beq :dn
-	lda #1
-	sta QuitFlag
-:dn	inc BIRD_Y
-	bpl :keyDone
-:up	dec BIRD_Y
-:noKey
-:keyDone	jmp HandleInputDone
 
 ******************************
 * Score Routines
@@ -731,6 +770,7 @@ WaitKeyXY
 	rts
 
 :kpress	sta STROBE
+	jsr QuitKeyCheck
 	sec
 	rts
 ]_waitX	db	0
@@ -755,6 +795,17 @@ DetectMachine
 	rts
 
 GMachineIIgs  dw 0
+
+
+Greetz	str "Michael J. Mahon"	; MJM
+	str "Antoine Vignau"	; Brutal Deluxe
+	str "Olivier Zardani"	; Brutal Deluxe
+	str "Chris Shepherd"	; belgorath
+	str "Glen Bredon"	; Merlin 8/16+
+	str "Roger Wagner"	; author
+	str "Steven Wozniak"	; woz
+	str "David Holz"	; white flame
+
 
 
 **************************************************
