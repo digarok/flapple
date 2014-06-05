@@ -129,6 +129,15 @@ DL_NibSwap
 	and #07
 	adc $00
 	rts
+DL_WipeInNoNib
+	sty DL_WipeLn2	; set up color bytes to write
+	sty DL_WipeLn2_I
+	stx DL_WipeLn1
+	stx DL_WipeLn1_I
+	sta DL_WipeLn0	
+	sta DL_WipeLn0_I
+	jmp DL_WipeIt
+	
 DL_WipeIn	
 	sty DL_WipeLn2	; set up color bytes to write
 	stx DL_WipeLn1
@@ -144,6 +153,7 @@ DL_WipeIn
 	jsr DL_NibSwap
 	sta DL_WipeLn2_I
 
+DL_WipeIt
 	ldx DL_WipeDelay
 	jsr VBlankX	; Frame 1 - special case (clipped)
 	lda DL_WipeLn0
@@ -349,6 +359,7 @@ DrawTap	lda #tapMaskColor
 	rts
 
 DrawYou
+	sty SPR_Y
 	lda #youMaskColor
 	sta SPR_MASKCOLOR
 
@@ -362,14 +373,14 @@ DrawYou
 	sta SPR_WIDTH
 	lda #13	
 	sta SPR_X
-	lda #4
-	sta SPR_Y
 	lda #0
 	sta SPR_CURLINE
 	jsr DrawSprite
 	rts
 
+* y = Y
 DrawHi
+	sty SPR_Y
 	lda #hiMaskColor
 	sta SPR_MASKCOLOR
 
@@ -383,8 +394,6 @@ DrawHi
 	sta SPR_WIDTH
 	lda #13	
 	sta SPR_X
-	lda #11
-	sta SPR_Y
 	lda #0
 	sta SPR_CURLINE
 	jsr DrawSprite

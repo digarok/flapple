@@ -23,8 +23,11 @@ CopyPtr       MAC
 
 
 Main	
+	jsr GetRand	; hack to avoid ugly color on first high score display
 	jsr DetectMachine	; also inits vbl
 	jsr LoadHiScore
+	jsr IntroWipe
+
 	jsr DL_SetDLRMode
 
 Title	
@@ -103,6 +106,8 @@ PreGameLoop
 
 	jmp HiScreen
 
+	jsr ButtonsCheck
+	bcs :key
 :checkKey	lda KEY
 	bpl :noKey
 :key	sta STROBE
@@ -152,7 +157,9 @@ GAME_OVER
 	sta SPR_Y
 	jsr DrawPlaqueShared
 
+	ldy #4
 	jsr DrawYou
+	ldy #11
 	jsr DrawHi
 
 	ldx #19
@@ -181,12 +188,13 @@ GAME_OVER
 HiScreen
 	jsr GetRand
 	jsr DL_Clear
-	lda #10
+	lda #9
 	sta SPR_Y
 	jsr DrawPlaqueShared
+	ldy #10
 	jsr DrawHi
 	ldx #19
-	ldy #11
+	ldy #10
 	jsr DrawHiScore
 	ldx #60
 	ldy #5
@@ -220,8 +228,6 @@ SND_Flap1
 	rts
 
 SND_Flap2
-*	lda #5
-*	sta $c034
 	ldx #$16	;LENGTH OF NOISE BURST
 :spkLoop	sta SPEAKER	;TOGGLE SPEAKER
 	txa
@@ -233,8 +239,6 @@ SND_Flap2
 	bne :waitLoop
 	dex	;GET NEXT PULSE OF THIS NOISE BURST
 	bne :spkLoop
-*	ldx #$0	;LENGTH OF NOISE BURST
-*	stx $c034
 	rts
 
 
@@ -242,7 +246,6 @@ SND_Static
 	ldx #$80	;LENGTH OF NOISE BURST
 :spkLoop	lda SPEAKER	;TOGGLE SPEAKER
 	jsr GetRand
-	and #%1000000
 	tay
 *	ldy $BA00,X	;GET PULSE WIDTH PSEUDO-RANDOMLY
 :waitLoop	dey	;DELAY LOOP FOR PULSE WIDTH
@@ -253,6 +256,7 @@ SND_Static
 	ldx #$60	;LENGTH OF NOISE BURST
 :spkLoop2	lda SPEAKER	;TOGGLE SPEAKER
 	jsr GetRand
+	and #%1000000
 	tay
 *	ldy $BA00,X	;GET PULSE WIDTH PSEUDO-RANDOMLY
 :waitLoop2	dey	;DELAY LOOP FOR PULSE WIDTH
@@ -276,6 +280,8 @@ HandleInput
 	lda BIRD_Y
 	sta BIRD_Y_OLD
 		;Update bird and velocity in here
+	jsr ButtonsCheck ;returns 0 when no button hit
+	bcs :flap	;don't even check keys if button was hit
 :kloop	lda KEY
 	bpl :noFlap
 :key	sta STROBE
@@ -318,6 +324,18 @@ HandleInput
 	lda #38
 	sta BIRD_Y
 :keyDone	jmp HandleInputDone
+
+ButtonsCheck
+	lda $c061	;b0
+	cmp #128
+	bcs :hit
+	lda $c062	;b1
+	cmp #128
+	bcs :hit
+	lda $c063	;b2
+	bcs :hit
+	clc
+:hit	rts	;will be non-zero if we bcs'ed our way here
 
 * A= key
 QuitKeyCheck	cmp #"q"
@@ -796,6 +814,26 @@ DetectMachine
 
 GMachineIIgs  dw 0
 
+IntroWipe
+	sta C80STOREON
+	lda #"="
+	ldx #"-"
+	ldy #" "
+	jsr DL_WipeInNoNib
+	sta TXTPAGE1
+	ldx #1
+:loop	lda IntroText,x
+	beq :done
+	sta Lo12+10,x
+	inx
+	cpx IntroText	; length byte
+	bne :loop
+:done
+	ldx #90
+	ldy #1
+	jsr WaitKeyXY
+	rts
+IntroText	str "Dagen Brock presents..."
 
 Greetz	str "Michael J. Mahon"	; MJM
 	str "Antoine Vignau"	; Brutal Deluxe
