@@ -6,7 +6,7 @@
 ****************************************
 	lst off
 	org $2000	; start at $2000 (all ProDOS8 system files)
-	dsk f	; tell compiler what name for output file ("f", temporarily)
+	dsk flap.system	; tell compiler output filename
 	typ $ff	; set P8 type ($ff = "SYS") for output file
 	xc  off	; @todo force 6502?
 	xc  off
@@ -498,7 +498,8 @@ WriteRefNum	db 0	; set by open subroutine above
 WriteResult	dw 0	; result count (amount transferred)
 
 
-Quit	jsr MLI	; first actual command, call ProDOS vector
+Quit	jsr QRPause
+	jsr MLI	; first actual command, call ProDOS vector
 	dfb $65	; QUIT P8 request ($65)
 	da QuitParm
 	bcs Error
@@ -518,7 +519,37 @@ QuitFlag	db 0	; set to 1 to quit
 IOBuffer	ds 512
 
 
-
+QRPause	jsr DL_SetDLRMixMode
+	lda #$ff
+	jsr DL_Clear
+	lda #" "
+	jsr DL_MixClearText
+	jsr DrawQRCode
+	ldx #0
+	ldy #0
+	sta TXTPAGE1
+:loop	lda QuitStr+1,x
+	sta Lo22+12,y
+	iny
+	inx
+	inx
+	cpx QuitStr
+	bcc :loop
+	ldx #1
+	ldy #0
+	sta TXTPAGE2
+:loop2	lda QuitStr+1,x
+	sta Lo22+13,y
+	iny
+	inx
+	inx
+	cpx QuitStr
+	bcc :loop2
+	ldx #5
+	ldy #60
+	jsr WaitKeyXY
+	rts
+QuitStr	str "http://dagenbrock.com/flappy"
 
 ******************************
 * Score Routines
@@ -834,15 +865,6 @@ IntroWipe
 	jsr WaitKeyXY
 	rts
 IntroText	str "Dagen Brock presents..."
-
-Greetz	str "Michael J. Mahon"	; MJM
-	str "Antoine Vignau"	; Brutal Deluxe
-	str "Olivier Zardani"	; Brutal Deluxe
-	str "Chris Shepherd"	; belgorath
-	str "Glen Bredon"	; Merlin 8/16+
-	str "Roger Wagner"	; author
-	str "Steven Wozniak"	; woz
-	str "David Holz"	; white flame
 
 
 

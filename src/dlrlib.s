@@ -25,7 +25,34 @@ DL_SetDLRMode lda LORES     ;set lores
 	sta SET80VID
 	
 	sta C80STOREON ; enable aux/page1,2 mapping
+	sta MIXCLR	;make sure graphics-only mode
 	rts
+DL_SetDLRMixMode lda LORES     ;set lores
+	lda SETAN3	;enables DLR
+	sta SET80VID
+	
+	sta C80STOREON ; enable aux/page1,2 mapping
+	sta MIXSET	;turn on mixed text/graphics mode
+	rts
+
+DL_MixClearText sta TXTPAGE1
+	ldx #40
+:loop	dex
+	sta Lo24,x
+	sta Lo23,x
+	sta Lo22,x
+	sta Lo21,x
+	bne :loop
+	sta TXTPAGE2
+	ldx #40
+:loop2	dex
+	sta Lo24,x
+	sta Lo23,x
+	sta Lo22,x
+	sta Lo21,x
+	bne :loop2
+	rts
+	
 
 ** A = lo-res color byte
 DL_Clear	sta TXTPAGE1
@@ -317,6 +344,26 @@ MainAuxMap
 	hex 70,78,71,79,72,7A,73,7B,74,7C,75,7D,76,7E,77,7F
 	hex F0,F8,F1,F9,F2,FA,F3,FB,F4,FC,F5,FD,F6,FE,F7,FF
 
+
+DrawQRCode	lda #QRCodeMaskColor
+	sta SPR_MASKCOLOR
+
+	lda #<QRCodeData
+	sta SPR_SP
+	lda #>QRCodeData
+	sta SPR_SP+1
+	lda #QRCodeHeight
+	sta SPR_HEIGHT
+	lda #QRCodeWidth
+	sta SPR_WIDTH
+	lda #13	; @todo rename 'flogo'
+	sta SPR_X
+	lda #3
+	sta SPR_Y
+	lda #0
+	sta SPR_CURLINE
+	jsr DrawSprite
+	rts
 
 DrawFlogo	lda #flogoMaskColor
 	sta SPR_MASKCOLOR
@@ -886,4 +933,35 @@ N9Data
  hex 10,00,01,11
  hex 11,10,01,11
 
-
+QRCodeMaskColor equ #$88
+QRCodeHeight equ #$0e
+QRCodeWidth equ #$0e
+QRCodeData
+	hex FF,0F,0F,0F,FF,FF,FF,0F,FF,FF,0F,0F,0F,FF,0F,0F,0F,0F,FF,FF,0F,FF,FF,0F
+	hex 0F,0F,0F,FF
+	hex FF,FF,0F,FF,FF,FF,FF,F0,F0,FF,FF,0F,FF,FF,00,0F,0F,00,F0,F0,FF,F0,F0,00
+	hex 0F,0F,00,FF
+	hex FF,FF,00,FF,FF,00,0F,F0,FF,FF,FF,00,FF,FF,00,00,00,00,F0,F0,F0,F0,0F,00
+	hex 00,00,00,FF
+	hex FF,0F,0F,0F,FF,F0,FF,F0,F0,FF,0F,0F,0F,FF,00,0F,0F,00,00,0F,00,0F,00,00
+	hex 0F,0F,00,FF
+	hex FF,0F,0F,FF,0F,00,0F,0F,0F,0F,0F,0F,0F,FF,0F,0F,0F,0F,0F,F0,0F,00,FF,FF
+	hex FF,FF,FF,FF
+	hex FF,00,0F,FF,00,FF,F0,00,0F,0F,00,0F,00,FF,F0,F0,FF,0F,F0,00,0F,0F,00,0F
+	hex FF,FF,0F,FF
+	hex FF,00,F0,00,0F,0F,FF,0F,FF,00,FF,FF,0F,FF,F0,0F,FF,0F,00,0F,F0,00,F0,0F
+	hex 0F,0F,00,FF
+	hex FF,F0,00,F0,00,FF,F0,F0,0F,0F,F0,00,00,FF,00,0F,0F,0F,FF,0F,0F,0F,F0,0F
+	hex FF,FF,0F,FF
+	hex FF,FF,00,0F,F0,00,FF,0F,0F,00,00,F0,FF,FF,00,00,00,0F,FF,00,F0,F0,0F,00
+	hex 0F,0F,F0,FF
+	hex FF,0F,0F,0F,FF,FF,F0,00,FF,FF,FF,00,0F,FF,0F,0F,0F,0F,00,FF,FF,0F,00,0F
+	hex 00,00,0F,FF
+	hex FF,FF,0F,FF,FF,00,FF,0F,0F,0F,0F,00,00,FF,00,0F,0F,00,0F,FF,00,00,00,0F
+	hex 00,0F,F0,FF
+	hex FF,FF,00,FF,FF,FF,F0,0F,00,F0,0F,FF,F0,FF,00,00,00,00,00,FF,0F,0F,F0,F0
+	hex F0,00,00,FF
+	hex FF,0F,0F,0F,FF,00,0F,0F,F0,F0,00,00,0F,FF,00,0F,0F,00,00,F0,0F,0F,F0,FF
+	hex 00,0F,00,FF
+	hex FF,FF,FF,FF,FF,FF,FF,FF,FF,FF,FF,FF,FF,FF,FF,FF,FF,FF,FF,FF,FF,FF,FF,FF
+	hex FF,FF,FF,FF
