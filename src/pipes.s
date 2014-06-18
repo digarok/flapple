@@ -17,10 +17,18 @@
 *	hex bb,aa,77,77,66,77,66,66,22,66,22,22,aa,bb,bb
 
 ** "interleave" format
+	DO MONO
+PipeBody_Main_E hex 55,ee,ee,cc,cc,44,00
+PipeBody_Main_O hex 00,ee,cc,cc,44,44,55,00
+PipeBody_Aux_E hex 00,77,66,66,22,22,aa,00
+PipeBody_Aux_O hex aa,77,77,66,66,22,00
+	ELSE 
 PipeBody_Main_E hex 55,ee,ee,cc,cc,44,77
 PipeBody_Main_O hex 77,ee,cc,cc,44,44,55,77
 PipeBody_Aux_E hex bb,77,66,66,22,22,aa,bb
 PipeBody_Aux_O hex aa,77,77,66,66,22,bb
+
+	FIN
 
 PipeInterval	equ #60	; game ticks to spawn new pipe
 PipeSpawn	db #45	; our counter, starting point for spawning
@@ -275,7 +283,7 @@ DrawPipeEven
 	sta (PIPE_DP1),y
 	sta (PIPE_DP3),y
 	iny	;col 14 (final!)
-	lda #$BB	; BGCOLOR! Last column, no need to undraw whole pipe
+	lda #BGCOLORAUX ; BGCOLOR! Last column, no need to undraw whole pipe
 	sta (PIPE_DP0),y
 	sta (PIPE_DP1),y
 	sta (PIPE_DP2),y
@@ -381,7 +389,7 @@ DrawPipeBodyEven
 	lda #$44
 	sta (PIPE_DP),y
 	iny
-	lda #$77
+	lda #BGCOLOR
 	sta (PIPE_DP),y
 
 
@@ -408,7 +416,7 @@ DrawPipeBodyEven
 	lda #$AA
 	sta (PIPE_DP),y
 	iny
-	lda #$BB
+	lda #BGCOLORAUX
 	sta (PIPE_DP),y
 
 	inc PIPE_Y
@@ -475,7 +483,7 @@ DrawPipeOdd
 	sta (PIPE_DP1),y
 	sta (PIPE_DP3),y
 	iny	;col 14 (final!)
-	lda #$77
+	lda #BGCOLOR
 	sta (PIPE_DP0),y
 	sta (PIPE_DP1),y
 	sta (PIPE_DP2),y
@@ -580,7 +588,7 @@ DrawPipeBodyOdd
 	lda #$55
 	sta (PIPE_DP),y
 	iny
-	lda #$77
+	lda #BGCOLOR
 	sta (PIPE_DP),y
 
 
@@ -604,7 +612,7 @@ DrawPipeBodyOdd
 	lda #$22
 	sta (PIPE_DP),y
 	iny
-	lda #$BB
+	lda #BGCOLORAUX
 	sta (PIPE_DP),y
 
 	inc PIPE_Y
@@ -684,7 +692,7 @@ DrawPipeEvenR
 	iny	;col 14 (final!)
 	cpy #PIPE_RCLIP
 	bcs :RCLIP
-	lda #$BB
+	lda #BGCOLORAUX
 	sta (PIPE_DP0),y
 	sta (PIPE_DP1),y
 	sta (PIPE_DP2),y
@@ -890,7 +898,7 @@ DrawPipeOddR
 	iny	;col 14 (final!)
 	cpy #PIPE_RCLIP
 	bcs :RCLIP
-	lda #$77
+	lda #BGCOLOR
 	sta (PIPE_DP0),y
 	sta (PIPE_DP1),y
 	sta (PIPE_DP2),y
@@ -1038,7 +1046,7 @@ DrawPipeEvenL
 		;col 14 (rightmost)
 	cpy #PIPE_RCLIP
 	bcs :RCLIP
-	lda #$BB
+	lda #BGCOLORAUX
 	sta (PIPE_DP0),y
 	sta (PIPE_DP1),y
 	sta (PIPE_DP2),y
@@ -1244,7 +1252,7 @@ DrawPipeOddL
 		;col 14 (rightmost)
 	cpy #PIPE_RCLIP
 	bcs :RCLIP
-	lda #$77
+	lda #BGCOLOR
 	sta (PIPE_DP0),y
 	sta (PIPE_DP1),y
 	sta (PIPE_DP2),y

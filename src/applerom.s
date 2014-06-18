@@ -16,5 +16,7 @@ SPEAKER	equ $C030
 VBL	equ $C02E
 RDVBLBAR	equ $C019 ;not VBL (VBL signal low
 
+RAMWRTAUX	equ $C005
+RAMWRTMAIN	equ $C004
 SETAN3	equ $C05E	;Set annunciator-3 output to 0
 SET80VID	equ $C00D	;enable 80-column display mode (WR-only)

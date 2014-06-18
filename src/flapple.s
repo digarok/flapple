@@ -6,7 +6,6 @@
 ****************************************
 	lst off
 	org $2000	; start at $2000 (all ProDOS8 system files)
-	dsk flap.system	; tell compiler output filename
 	typ $ff	; set P8 type ($ff = "SYS") for output file
 	xc  off	; @todo force 6502?
 	xc  off
@@ -21,9 +20,33 @@ CopyPtr       MAC
 	sta ]2+1      ; store high byte
 	<<<
 
+; HANDLE GREENSCREEN DOODS
+MONO	equ 0	; set 0 = color mode,  1 = mono mode
+
+	DO MONO
+	dsk fmono.system	; tell compiler output filename
+BGCOLOR	equ #$00
+BGCOLORAUX	equ #$00
+BGCOLOR_0LO	equ #$00
+BGCOLOR_0HI	equ #$00
+BGCOLORAUX_0LO	equ #$00
+BGCOLORAUX_0HI	equ #$00
+
+; HANDLE COLOR DOODS
+	ELSE
+	dsk flap.system	; tell compiler output filename
+BGCOLOR	equ #$77
+BGCOLORAUX	equ #$BB
+BGCOLOR_0LO	equ #$70
+BGCOLOR_0HI	equ #$07
+BGCOLORAUX_0LO	equ #$B0
+BGCOLORAUX_0HI	equ #$0B
+	
+	FIN
+
+
 
 Main	
-	jsr GetRand	; hack to avoid ugly color on first high score display
 	jsr DetectMachine	; also inits vbl
 	jsr LoadHiScore
 	jsr IntroWipe
@@ -32,13 +55,17 @@ Main
 
 Title	
 	jsr VBlank
+	DO MONO
+	lda #$FF
+	ELSE
 	lda #$00
+	FIN
 	jsr DL_Clear
 	ldx #3	;slight pause
 	jsr VBlankX
 	lda #$F6
 	ldx #$27
-	ldy #$77
+	ldy #BGCOLOR
 	jsr DL_WipeIn
 	jsr DrawFlogo
 	lda FlogoCount
@@ -74,7 +101,7 @@ PreGameLoop
 
 ** CLEAR SCREEN - SETUP BIRD
 	jsr VBlank
-	lda #$77
+	lda #BGCOLOR
 	jsr DL_Clear
 
 	lda #BIRD_X
@@ -111,7 +138,7 @@ PreGameLoop
 :checkKey	lda KEY
 	bpl :noKey
 :key	sta STROBE
-	lda #$77
+	lda #BGCOLOR
 	jsr DL_Clear
 	jmp GameLoop
 
@@ -210,8 +237,6 @@ FlogoCount	db 0	; used to throttle how often song is played
 
 SND_Flap	jmp SND_Flap2
 SND_Flap1
-*	lda #5
-*	sta $c034
 	ldx #$1c	;LENGTH OF NOISE BURST
 :spkLoop	lda SPEAKER	;TOGGLE SPEAKER
 	txa
@@ -223,8 +248,6 @@ SND_Flap1
 	bne :waitLoop
 	dex	;GET NEXT PULSE OF THIS NOISE BURST
 	bne :spkLoop
-*	ldx #$0	;LENGTH OF NOISE BURST
-*	stx $c034
 	rts
 
 SND_Flap2
@@ -499,6 +522,7 @@ WriteResult	dw 0	; result count (amount transferred)
 
 
 Quit	jsr QRPause
+	sta TXTPAGE1	; Don't forget to give them back the right page!
 	jsr MLI	; first actual command, call ProDOS vector
 	dfb $65	; QUIT P8 request ($65)
 	da QuitParm
@@ -837,13 +861,14 @@ DetectMachine
 *	bcc :newmachine    ;If carry is clear, then new machine
 :newmachine   asl _compType	;multiply vblank detection val $7E * 2
 	lda #1
-	sta GMachineIIgs
-	rts
+	bne :setmachine
 :oldmachine	lda #0
-	sta GMachineIIgs
+:setmachine	sta GMachineIIgs
+
+	jsr InitVBlank
 	rts
 
-GMachineIIgs  dw 0
+GMachineIIgs  db 0
 
 IntroWipe
 	sta C80STOREON
@@ -871,16 +896,93 @@ IntroText	str "Dagen Brock presents..."
 **************************************************
 * Wait for vertical blanking interval - IIe/IIgs
 **************************************************
-VBlankX	lda _compType
-:vblActive	cmp RDVBLBAR	; make sure we wait for the current one to stop
-	bpl :vblActive ; in case it got launched in rapid succession
-:screenActive cmp RDVBLBAR
-	bmi :screenActive
+VBlankX	
+:xloop	txa 
+	pha 
+	jsr VBlank
+	pla
+	tax
 	dex
-	bne :vblActive
+	bne :xloop
 	rts
 
-VBlank	lda _compType
+
+InitVBlank	
+	lda $FBC0	; check for IIc
+	bne ]rts	; not a IIc--use VBlankIIeIIgs
+
+              jsr MLI       ; instantiate our interrupt
+	dfb $40
+	da VBLIntParm
+	
+	lda #%00001000 ; enable vblint only
+              ldx #SETMOUSE
+	jsr mouse
+
+	lda #VBlankIIc ; override vblank
+	sta VBlankRoutine
+	lda #>VBlankIIc
+	sta VBlankRoutine+1
+
+	cli
+	
+]rts	rts
+
+
+VBLIntParm	dfb 2
+	brk	;?
+	da VBLIntHandler
+
+VBLIntHandler	cld	; Expected by ProDOS
+	ldx #SERVEMOUSE
+	jsr mouse
+	bcs :notOurs	; pass if not
+	sec
+	ror _vblflag ;set hibit
+
+	clc
+:notOurs	rts
+
+mouse	ldy $C400,x
+	sty ]jump+1
+
+              ldx     #$C4
+	ldy     #$40
+
+	sei
+]jump	jmp     $C400
+
+
+
+
+MOUSE	=   $c400	; mouse = slot 4
+*SETMOUSE	=   $c412	; Apple IIc Ref p.168
+*SERVEMOUSE	=   $c413	; Apple IIc Ref p.168
+
+SETMOUSE        = $12
+SERVEMOUSE      = $13
+READMOUSE       = $14
+INITMOUSE       = $19
+
+VBlank	jmp VBlankIIeIIgs
+VBlankRoutine equ *-2
+VBlankIIc
+	cli	;enable interrupts
+
+:loop1	bit _vblflag
+	bpl :loop1	;wait for vblflag = 1
+	lsr _vblflag	;...& set vblflag = 0
+
+*:loop2	bit _vblflag
+*	bpl :loop2
+*	lsr _vblflag
+
+	sei
+	rts
+_vblflag	db 0
+
+VBlankIIeIIgs
+	lda _compType
 :vblActive	cmp RDVBLBAR	; make sure we wait for the current one to stop
 	bpl :vblActive ; in case it got launched in rapid succession
 :screenActive cmp RDVBLBAR

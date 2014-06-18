@@ -23,8 +23,6 @@ SPRITE_SCREEN_P4 equz $FA
 SPRITE_IMASK_P equz $FC
 
 SPRITE_SCREEN_IDX db #$0
-AUX_BG_COLOR	db #$BB
-MAIN_BG_COLOR	db #$77
 
 
 BIRD_X	equ #17
@@ -57,10 +55,15 @@ FlapBird
 
 ***** EVEN then ODD, i.e. AUX then MAIN
 BIRD_WUP_E_PIXEL
+	DO MONO
+	hex 00,EA,EA,FF,F0,50,D5,A5,0F,00
+	hex AA,EA,EE,CF,CF,D5,55,8A,90,90
+	hex 05,AD,A4,08,08,05,5D,51,01,00
+	ELSE
 	hex BB,EA,EA,FF,FB,57,D5,A5,0F,77
 	hex AA,EA,EE,CF,CF,D5,55,8A,90,97
 	hex B5,AD,A4,B8,B8,75,5D,51,71,77
-
+	FIN
 
 BIRD_WUP_E_MASK
 	hex FF,00,00,00,0F,0F,00,00,00,FF
@@ -75,10 +78,15 @@ BIRD_WUP_E_IMASK
 
 ***** EVEN then ODD, i.e. AUX then MAIN
 BIRD_WDN_E_PIXEL
+	DO MONO
+	 hex 00,EA,EA,FF,F0,50,D5,A5,0F,00
+	 hex AA,EE,EE,CF,CF,DD,5D,8A,90,90
+	 hex 54,AE,A4,08,08,5D,55,51,01,00
+	ELSE
 	 hex BB,EA,EA,FF,FB,57,D5,A5,0F,77
 	 hex AA,EE,EE,CF,CF,DD,5D,8A,90,97
 	 hex 54,AE,A4,B8,B8,5D,55,51,71,77
-
+	FIN
 
 BIRD_WDN_E_MASK
 	 hex FF,00,00,00,0F,0F,00,00,00,FF
@@ -94,11 +102,18 @@ BIRD_WDN_E_IMASK
 	
 ***** EVEN then ODD, i.e. AUX then MAIN
 BIRD_WUP_O_PIXEL
+	DO MONO
+	 hex 00,A0,A0,F0,00,00,50,50,F0,00
+	 hex A0,AE,EE,FF,FF,55,5D,AA,00,00
+	 hex 5A,DE,4E,8C,8C,5D,D5,18,19,09
+	 hex 00,0A,0A,00,00,00,05,05,00,00
+	ELSE
 	 hex BB,AB,AB,FB,BB,77,57,57,F7,77
 	 hex AB,AE,EE,FF,FF,55,5D,AA,00,77
 	 hex 5A,DE,4E,8C,8C,5D,D5,18,19,79
 	 hex BB,BA,BA,BB,BB,77,75,75,77,77
 
+	FIN
 
 BIRD_WUP_O_MASK
 	 hex FF,0F,0F,0F,FF,FF,0F,0F,0F,FF
@@ -116,11 +131,17 @@ BIRD_WUP_O_IMASK
 
 ***** EVEN then ODD, i.e. AUX then MAIN
 BIRD_WDN_O_PIXEL
+	DO MONO
+	 hex 00,A0,A0,F0,00,00,50,50,F0,00
+	 hex A0,EE,EE,FF,FF,D5,DD,AA,00,00
+	 hex 4A,EE,4E,8C,8C,DD,55,18,19,09
+	 hex 05,0A,0A,00,00,05,05,05,00,00
+	ELSE
 	 hex BB,AB,AB,FB,BB,77,57,57,F7,77
 	 hex AB,EE,EE,FF,FF,D5,DD,AA,00,77
 	 hex 4A,EE,4E,8C,8C,DD,55,18,19,79
 	 hex B5,BA,BA,BB,BB,75,75,75,77,77
-
+	FIN
 
 BIRD_WDN_O_MASK
 	 hex FF,0F,0F,0F,FF,FF,0F,0F,0F,FF
@@ -163,7 +184,7 @@ UndrawBird	lda BIRD_Y_OLD
 	pha	; stash
 	tay	; COL offset
 	sta TXTPAGE2
-	lda #$BB
+	lda #BGCOLORAUX
 :wipe1	sta (SPRITE_SCREEN_P),y
 	sta (SPRITE_SCREEN_P2),y
 	sta (SPRITE_SCREEN_P3),y
@@ -187,7 +208,7 @@ UndrawBird	lda BIRD_Y_OLD
 	pla	; unstash
 	tay
 	sta TXTPAGE1
-	lda #$77
+	lda #BGCOLOR
 :wipe2	sta (SPRITE_SCREEN_P),y
 	sta (SPRITE_SCREEN_P2),y
 	sta (SPRITE_SCREEN_P3),y
@@ -234,7 +255,7 @@ UndrawBird	lda BIRD_Y_OLD
 	pha	; stash
 	tay	; COL offset
 	sta TXTPAGE2
-	lda #$BB
+	lda #BGCOLORAUX
 :wipe3	sta (SPRITE_SCREEN_P),y
 	sta (SPRITE_SCREEN_P2),y
 	sta (SPRITE_SCREEN_P3),y
@@ -263,7 +284,7 @@ UndrawBird	lda BIRD_Y_OLD
 	pla	; unstash
 	tay
 	sta TXTPAGE1
-	lda #$77
+	lda #BGCOLOR
 :wipe4	sta (SPRITE_SCREEN_P),y
 	sta (SPRITE_SCREEN_P2),y
 	sta (SPRITE_SCREEN_P3),y
@@ -384,13 +405,13 @@ DD_EVEN	lda #0
 	lda (SPRITE_SCREEN_P),y
 
 	ldy SPRITE_X_IDX	; PREP Y INDEX
-	cmp #$BB		; AUX BGCOLOR @TODO
+	cmp #BGCOLORAUX	; AUX BGCOLOR @TODO
 	beq :noCollisionSIMPLE
 	pha		; SAVE -> STACK
 	and (SPRITE_IMASK_P),y	
-	cmp #$B0
+	cmp #BGCOLORAUX_0LO
 	beq :noCollision
-	cmp #$0B
+	cmp #BGCOLORAUX_0HI
 	beq :noCollision
 	lda #1
 	sta SPRITE_COLLISION
@@ -429,13 +450,13 @@ DD_ODD
 	ldy SPRITE_SCREEN_IDX	; GET SCREEN PIXELS
 	lda (SPRITE_SCREEN_P),y
 	ldy SPRITE_X_IDX	; PREP Y INDEX
-	cmp #$77		; MAIN BGCOLOR @TODO
+	cmp #BGCOLOR		; MAIN BGCOLOR @TODO
 	beq :noCollisionSIMPLE
 	pha		; SAVE -> STACK
 	and (SPRITE_IMASK_P),y	
-	cmp #$70
+	cmp #BGCOLOR_0LO
 	beq :noCollision
-	cmp #$07
+	cmp #BGCOLOR_0HI
 	beq :noCollision
 	lda #1
 	sta SPRITE_COLLISION
