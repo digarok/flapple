@@ -3,8 +3,8 @@ LOGO_Y               db    1
 LOGO_X               db    3
 LOGO_CURLINE         db    0
 
-SPR_SP               equz  $00
-SPR_DP               equz  $02
+SPR_SP               equ  $00
+SPR_DP               equ  $02
 SPR_PIXEL            db    00
 SPR_MASKCOLOR        db    0
 SPR_MASKCOLORH       db    0

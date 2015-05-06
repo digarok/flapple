@@ -20,8 +20,8 @@ CopyPtr             MAC
                     sta   ]2+1               ; store high byte
                     <<<
 
-; HANDLE GREENSCREEN DOODS
-MONO                equ   0                  ; set 0 = color mode,  1 = mono mode
+; HANDLE GREENSCREEN DOODS... MONO flag set 0 = color mode,  1 = mono mode
+MONO                equ   1
 
                     DO    MONO
                     dsk   fmono.system       ; tell compiler output filename
@@ -830,13 +830,13 @@ WaitKey
                     rts
 
 WaitKeyXY
-                    stx   ]_waitX
+                    stx   _waitX
 :kloop              jsr   VBlank
                     lda   KEY
                     bmi   :kpress
                     dex
                     bne   :kloop
-                    ldx   ]_waitX
+                    ldx   _waitX
                     dey
                     bne   :kloop
                     clc
@@ -846,7 +846,7 @@ WaitKeyXY
                     jsr   QuitKeyCheck
                     sec
                     rts
-]_waitX             db    0
+_waitX             db    0
 
 **************************************************
 * See if we're running on a IIgs
@@ -909,7 +909,7 @@ VBlankX
 
 InitVBlank
                     lda   $FBC0              ; check for IIc
-                    bne   ]rts               ; not a IIc--use VBlankIIeIIgs
+                    bne   :rts               ; not a IIc--use VBlankIIeIIgs
 
                     jsr   MLI                ; instantiate our interrupt
                     dfb   $40
@@ -926,7 +926,7 @@ InitVBlank
 
                     cli
 
-]rts                rts
+:rts                rts
 
 
 VBLIntParm          dfb   2
@@ -944,13 +944,13 @@ VBLIntHandler       cld                      ; Expected by ProDOS
 :notOurs            rts
 
 mouse               ldy   $C400,x
-                    sty   ]jump+1
+                    sty   :jump+1
 
                     ldx   #$C4
                     ldy   #$40
 
                     sei
-]jump               jmp   $C400
+:jump               jmp   $C400
 
 
 
@@ -995,11 +995,11 @@ _compType           db    #$7e               ; $7e - IIe ; $FE - IIgs
 
 
 
-                    use   util
-                    use   applerom
-                    use   dlrlib
-                    use   pipes
-                    use   numbers
-                    use   soundengine
-                    use   bird
+                    put   util
+                    put   applerom
+                    put   dlrlib
+                    put   pipes
+                    put   numbers
+                    put   soundengine
+                    put   bird
 

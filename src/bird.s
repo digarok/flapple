@@ -13,14 +13,14 @@ SPRITE_COLLISION       db       0
 SPRITE_Y_IDX           dw       0
 SPRITE_X_IDX           dw       0
 
-SPRITE_SCREEN_P        equz     $00
-SPRITE_DATA_P          equz     $02
-SPRITE_SCREEN_P2       equz     $02
-SPRITE_AUX_P           equz     $04
-SPRITE_SCREEN_P3       equz     $04
-SPRITE_MASK_P          equz     $FA
-SPRITE_SCREEN_P4       equz     $FA
-SPRITE_IMASK_P         equz     $FC
+SPRITE_SCREEN_P        equ     $00
+SPRITE_DATA_P          equ     $02
+SPRITE_SCREEN_P2       equ     $02
+SPRITE_AUX_P           equ     $04
+SPRITE_SCREEN_P3       equ     $04
+SPRITE_MASK_P          equ     $FA
+SPRITE_SCREEN_P4       equ     $FA
+SPRITE_IMASK_P         equ     $FC
 
 SPRITE_SCREEN_IDX      db       #$0
 

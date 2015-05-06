@@ -1,0 +1,88 @@
+#!/bin/bash
+MERLIN="../tools/Merlin32_v1.0/MacOSX/Merlin32"
+
+# Here's our fancy build pipeline.  Output = src/flap (or fmono) (binary file)
+$MERLIN -V . src/f.s
+
+#second time with different build flags (MONO=1)
+sed -i.bak "s/^MONO\(.*\)equ.*/MONO\1equ  1/g" src/f.s
+$MERLIN -V . src/f.s
+#revert file to original state (MONO=0)
+sed -i.bak "s/^MONO\(.*\)equ.*/MONO\1equ  0/g" src/f.s
+
+
+# This is actually the output file from Merlin
+# Merlin seems to have problems with periods in names?
+OUTPUTBIN="src/flap"
+OUTPUTBIN2="src/fmono"
+
+# It seems Merlin32 doesn't return response codes?  
+# So my work-around is to check for the outputted binary
+# and if it doesn't exist, then assembly failed and we stop
+if [ ! -f $OUTPUTBIN ] || [ ! -f $OUTPUTBIN2 ] ; then
+  echo "Build failed.  Merlin32 was not able to generate one of the binaries:"
+  echo "  '$OUTPUTBIN'  '$OUTPUTBIN2'"
+  echo "See assembler error messages above."
+  echo ""
+  exit
+fi
+
+mv src/flap src/flap.system
+mv src/fmono src/fmono.system
+
+SRCFILES=(`ls src/*.s`)
+SYSFILES=(`ls src/PRODOS src/*system`)
+SRCDIR=src
+BLDDIR=build/nix
+
+DISK="flapple"
+CADIUS="../tools/Cadius"
+
+if [ ! -d $BLDDIR ] ; then
+  echo "Build directory for this platform doesn't exist so I will create it."
+  mkdir -p $BLDDIR
+  echo "Created: $BLDDIR"
+  sleep 1
+fi
+
+# need to autogen
+cp src/_FileInformation.txt $BLDDIR
+
+echo "Creating disk images"
+$CADIUS createvolume ${DISK}800.po ${DISK}800 800KB >/dev/null
+$CADIUS createvolume ${DISK}140.po ${DISK}140 140KB 
+
+#SYSTEM FILES
+echo -n "Processing System files: "
+COMMA=""
+for f in ${SYSFILES[@]}; 
+do
+  FNAME=${f##*/}
+  echo -n "$COMMA $FNAME"
+  cp $f $BLDDIR/$FNAME 
+  $CADIUS addfile ${DISK}800.po /${DISK}800/ $BLDDIR/$FNAME >/dev/null
+  $CADIUS addfile ${DISK}140.po /${DISK}140/ $BLDDIR/$FNAME >/dev/null
+  COMMA=","
+done
+
+#SOURCE FILES
+echo ""
+echo -n "Processing Source files: "
+COMMA=""
+for f in ${SRCFILES[@]}; 
+do
+  FNAME=${f##*/}
+  echo -n "$COMMA $FNAME"
+  cp $f $BLDDIR/$FNAME 
+  $CADIUS sethighbit $BLDDIR/$FNAME >/dev/null
+  $CADIUS addfile ${DISK}800.po /${DISK}800/ $BLDDIR/$FNAME >/dev/null
+  $CADIUS addfile ${DISK}140.po /${DISK}140/ $BLDDIR/$FNAME >/dev/null
+  COMMA=","
+done
+echo ""
+echo ""
+
+
+echo "Look, I'm no expert, but I think everything went pretty well.  (BUILD SUCCEEDED!!!)"
+echo ""
+exit

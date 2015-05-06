@@ -39,15 +39,15 @@ PipeSet            ds    MaxPipes*3         ; array of pipe{x,y1,y2}
 TopPipes           ds    MaxPipes*2         ; Space for pipe X,Y
 BotPipes           ds    MaxPipes*2         ; "
 
-PIPE_SP            equz  $F0
+PIPE_SP            equ  $F0
 
 
-PIPE_DP            equz  $00
-PIPE_DP0           equz  $00
-PIPE_DP1           equz  $02
-PIPE_DP2           equz  $04
-PIPE_DP3           equz  $06
-PIPE_DP4           equz  $08
+PIPE_DP            equ  $00
+PIPE_DP0           equ  $00
+PIPE_DP1           equ  $02
+PIPE_DP2           equ  $04
+PIPE_DP3           equ  $06
+PIPE_DP4           equ  $08
 
 PIPE_RCLIP         equ   #40
 PIPE_WIDTH         equ   #15
