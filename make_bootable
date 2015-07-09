@@ -50,7 +50,7 @@ cp src/_FileInformation.txt $BLDDIR
 
 echo "Creating disk images"
 $CADIUS createvolume ${DISK}800.po ${DISK}800 800KB >/dev/null
-$CADIUS createvolume ${DISK}140.po ${DISK}140 140KB 
+$CADIUS createvolume ${DISK}140.po ${DISK}140 140KB >/dev/null
 
 #SYSTEM FILES
 echo -n "Processing System files: "
