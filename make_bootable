@@ -2,13 +2,13 @@
 MERLIN="../tools/Merlin32_v1.0/MacOSX/Merlin32"
 
 # Here's our fancy build pipeline.  Output = src/flap (or fmono) (binary file)
-$MERLIN -V . src/f.s
+$MERLIN -V . src/flapple.s
 
 #second time with different build flags (MONO=1)
-sed -i.bak "s/^MONO\(.*\)equ.*/MONO\1equ  1/g" src/f.s
-$MERLIN -V . src/f.s
+sed -i.bak "s/^MONO\(.*\)equ.*/MONO\1equ  1/g" src/flapple.s
+$MERLIN -V . src/flapple.s
 #revert file to original state (MONO=0)
-sed -i.bak "s/^MONO\(.*\)equ.*/MONO\1equ  0/g" src/f.s
+sed -i.bak "s/^MONO\(.*\)equ.*/MONO\1equ  0/g" src/flapple.s
 
 
 # This is actually the output file from Merlin
