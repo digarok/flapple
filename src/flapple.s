@@ -133,9 +133,9 @@ PreGameLoop
 
                     jmp   HiScreen
 
-                    jsr   ButtonsCheck
+:checkKey           jsr   ButtonsCheck
                     bcs   :key
-:checkKey           lda   KEY
+                    lda   KEY
                     bpl   :noKey
 :key                sta   STROBE
                     lda   #BGCOLOR
