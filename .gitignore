@@ -1,0 +1,10 @@
+build/
+gsport
+config.gsport
+gsos
+src/PRODOS
+PRODOS*
+src/*_Output.txt
+src/*.system
+flapple800.po
+flapple140.po

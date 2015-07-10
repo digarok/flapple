@@ -82,6 +82,8 @@ done
 echo ""
 echo ""
 
+# Move build log out of source dir to current dir
+mv src/*Output.txt .
 
 echo "Look, I'm no expert, but I think everything went pretty well.  (BUILD SUCCEEDED!!!)"
 echo ""
