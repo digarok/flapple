@@ -21,7 +21,7 @@ CopyPtr             MAC
                     <<<
 
 ; HANDLE GREENSCREEN DOODS... MONO flag set 0 = color mode,  1 = mono mode
-MONO                equ   1
+MONO                equ  0
 
                     DO    MONO
                     dsk   fmono.system       ; tell compiler output filename
@@ -348,7 +348,7 @@ HandleInput
                     sta   BIRD_Y
 :keyDone            jmp   HandleInputDone
 
-ButtonsCheck
+ButtonsCheck        lda   ButtonHeld
                     lda   $c061              ;b0
                     cmp   #128
                     bcs   :hit
@@ -357,8 +357,19 @@ ButtonsCheck
                     bcs   :hit
                     lda   $c063              ;b2
                     bcs   :hit
+:nohit              lda   #0
+                    sta   ButtonHeld
                     clc
-:hit                rts                      ;will be non-zero if we bcs'ed our way here
+                    rts
+
+:hit                lda   ButtonHeld
+                    bne   :noflap
+                    inc   ButtonHeld         ; set to 1
+                    sec
+                    rts
+:noflap             clc
+                    rts
+ButtonHeld          db    0
 
 * A= key
 QuitKeyCheck        cmp   #"q"
@@ -846,7 +857,7 @@ WaitKeyXY
                     jsr   QuitKeyCheck
                     sec
                     rts
-_waitX             db    0
+_waitX              db    0
 
 **************************************************
 * See if we're running on a IIgs
@@ -1002,4 +1013,5 @@ _compType           db    #$7e               ; $7e - IIe ; $FE - IIgs
                     put   numbers
                     put   soundengine
                     put   bird
+
 
