@@ -1,0 +1,58 @@
+on: [push]
+
+jobs:
+  cicd_pipeline:
+    runs-on: ubuntu-latest
+    name: Run assembly and disk image CICD pipeline
+    steps:
+    # CHECKOUT AND ASSEMBLE ON EVERY PUSH, ANY BRANCH
+    - uses: actions/checkout@v1
+    - name: Install Merlin
+      uses: digarok/install-merlin32-action@v0.1.0
+
+    - name: Assemble Source 
+      run: |
+        merlin32 -V src/flapple.s
+        sed -i.bak "s/^MONO\(.*\)equ.*/MONO\1equ  1/g" src/flapple.s
+        merlin32 -V src/flapple.s
+        sed -i.bak "s/^MONO\(.*\)equ.*/MONO\1equ  0/g" src/flapple.s
+
+
+    - name: Install Cadius
+      uses: digarok/install-cadius-action@v0.1.0
+
+    - name: Make Bootable ProDOS Image
+      if: startsWith(github.ref, 'refs/tags/v') 
+      run: ./make_po.sh
+
+    # EVERYTHING BELOW IS ONLY WHEN VERSION TAGS PUSHED (i.e. tag like "v0.1")
+    - name: Create Release
+      id: create_release
+      if: startsWith(github.ref, 'refs/tags/v') 
+      uses: actions/create-release@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        tag_name: ${{ github.ref }}
+        release_name: Release ${{ github.ref }}
+
+    - name: Upload Release Asset - 140KB ProDOS Image
+      if: startsWith(github.ref, 'refs/tags/v') 
+      uses: actions/upload-release-asset@v1.0.1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }} 
+        asset_path: ./flapple140.po
+        asset_name: flapple140.po
+        asset_content_type: application/octet-stream
+    - name: Upload Release Asset - 800KB ProDOS Image
+      if: startsWith(github.ref, 'refs/tags/v') 
+      uses: actions/upload-release-asset@v1.0.1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }} 
+        asset_path: ./flapple800.po
+        asset_name: flapple800.po
+        asset_content_type: application/octet-stream
