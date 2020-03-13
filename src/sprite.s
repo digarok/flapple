@@ -12,36 +12,18 @@ SPRITE_COLLISION       db       0
 SPRITE_Y_IDX           dw       0
 SPRITE_X_IDX           dw       0
 
-SPRITE_SCREEN_P        equz     $00
-SPRITE_MAIN_P          equz     $02
-SPRITE_SCREEN_P2       equz     $02
-SPRITE_AUX_P           equz     $04
-SPRITE_SCREEN_P3       equz     $04
-SPRITE_MASK_P          equz     $FA
-SPRITE_SCREEN_P4       equz     $FA
-SPRITE_IMASK_P         equz     $FC
+SPRITE_SCREEN_P        equ     $00
+SPRITE_MAIN_P          equ     $02
+SPRITE_SCREEN_P2       equ     $02
+SPRITE_AUX_P           equ     $04
+SPRITE_SCREEN_P3       equ     $04
+SPRITE_MASK_P          equ     $FA
+SPRITE_SCREEN_P4       equ     $FA
+SPRITE_IMASK_P         equ     $FC
 
 SPRITE_SCREEN_IDX      db       #$0
 AUX_BG_COLOR           db       #$BB
 MAIN_BG_COLOR          db       #$77
-
-*** MAKE IT WORK
-
-BirdTest
-                       lda      BIRD_X                         ;#30 (0-79)
-                       sta      SPRITE_X
-                       lda      BIRD_Y                         ;#10 (0-23)
-                       sta      SPRITE_Y
-                       lda      #5                             ;/2 value (we do two passes of 1/2... Aux/Main)
-                       sta      SPRITE_W
-                       lda      #3                             ;/2 value (must be byte aligned vertically
-                       sta      SPRITE_H
-                       CopyPtr  BIRD_WDN_MAIN;SPRITE_MAIN_P
-                       CopyPtr  BIRD_WDN_AUX;SPRITE_AUX_P
-                       CopyPtr  BIRD_WDN_MASK;SPRITE_MASK_P
-                       CopyPtr  BIRD_WDN_IMASK;SPRITE_IMASK_P
-                       jsr      DrawSpriteBetter
-                       rts
 
 * still does collision
 DrawSpriteBetter
@@ -158,5 +140,6 @@ DD_ODD
                        dec      SPRITE_X_IDX                   ; -1 column offset (for next row)
 
                        jmp      ]DSLCD_done
+
 
 

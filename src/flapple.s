@@ -61,18 +61,36 @@ Title
                     lda   #$00
                     FIN
                     jsr   DL_Clear
-                    ldx   #3                 ;slight pause
+                    ldx   #3                 ; slight pause
                     jsr   VBlankX
                     lda   #$F6
                     ldx   #$27
                     ldy   #BGCOLOR
                     jsr   DL_WipeIn
-                    jsr   DrawFlogo
+                    jsr   DrawTitle
                     lda   FlogoCount
                     and   #%00000011         ; every 4 times?
-                    bne   :noSongForYou
-                    jsr   PlayFlappySong     ;@todo throttle
+                    bne   :noSongForYou      ; throttle the frequency of audio during attract
+                    jsr   PlayFlappySong
+:kfest_additions
+                    ldx   #15                ;slight pause
+                    jsr   VBlankX
+                    jsr   DrawBanner         ; draw the little kfest banner 
+                    ldx   #4
+                    jsr   VBlankX            ; slight pause
+                    lda   #KFW               ; setup sound pointers
+                    sta   $06
+                    lda   #>KFW
+                    sta   $07
+                    lda   #KFW_end
+                    sta   $08
+                    lda   #>KFW_end
+                    sta   $09
+                    jsr   entry              ; call DAC522 playback entry point
+
 :noSongForYou
+
+
                     inc   FlogoCount
                     ldx   #60
                     ldy   #2
@@ -1013,5 +1031,8 @@ _compType           db    #$7e               ; $7e - IIe ; $FE - IIgs
                     put   numbers
                     put   soundengine
                     put   bird
+                    put   flogo
+                    put   kfw
+                    put   dac522
 
 

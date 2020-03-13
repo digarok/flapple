@@ -3,8 +3,8 @@ LOGO_Y               db    1
 LOGO_X               db    3
 LOGO_CURLINE         db    0
 
-SPR_SP               equ  $00
-SPR_DP               equ  $02
+SPR_SP               equ   $00
+SPR_DP               equ   $02
 SPR_PIXEL            db    00
 SPR_MASKCOLOR        db    0
 SPR_MASKCOLORH       db    0
@@ -359,6 +359,42 @@ DrawQRCode           lda   #QRCodeMaskColor
                      lda   #13                  ; @todo rename 'flogo'
                      sta   SPR_X
                      lda   #3
+                     sta   SPR_Y
+                     lda   #0
+                     sta   SPR_CURLINE
+                     jsr   DrawSprite
+                     rts
+DrawTitle
+                     lda   #<FLOGO_MAINRLE
+                     sta   $2
+                     lda   #>FLOGO_MAINRLE
+                     sta   $3
+                     sta   TXTPAGE1
+                     jsr   DKUnpackRLEToLoRes
+
+
+                     lda   #<FLOGO_AUXRLE
+                     sta   $2
+                     lda   #>FLOGO_AUXRLE
+                     sta   $3
+                     sta   TXTPAGE2
+                     jsr   DKUnpackRLEToLoRes
+                     rts
+
+DrawBanner
+                     lda   #bannerMaskColor     ; always need to set this or it will use whatever last mask was
+                     sta   SPR_MASKCOLOR
+                     lda   #<bannerData
+                     sta   SPR_SP
+                     lda   #>bannerData
+                     sta   SPR_SP+1
+                     lda   #bannerHeight
+                     sta   SPR_HEIGHT
+                     lda   #bannerWidth
+                     sta   SPR_WIDTH
+                     lda   #33
+                     sta   SPR_X
+                     lda   #0
                      sta   SPR_Y
                      lda   #0
                      sta   SPR_CURLINE
@@ -866,6 +902,36 @@ hiData
                      hex   10,10,10,11,11,11
 
 
+bannerMaskColor      equ   #$bb
+bannerHeight         equ   #24
+bannerWidth          equ   #$07
+bannerData
+                     hex   BB,BB,EB,EB,EB,EB,BB,77,D7,D7,D7,D7,77,77
+                     hex   BB,8E,C8,C8,88,88,EB,D7,11,91,91,91,1D,77
+                     hex   BB,88,88,88,F8,88,EE,DD,19,F1,11,11,11,77
+                     hex   BB,88,88,F8,8A,88,EE,DD,11,FF,5F,11,11,77
+                     hex   BB,88,88,8A,F8,88,EE,DD,11,FF,5F,11,11,77
+                     hex   BB,88,88,88,AF,88,EE,DD,11,5F,11,11,11,77
+                     hex   BB,88,88,F8,F8,88,EE,DD,11,F1,F1,11,11,77
+                     hex   BB,88,88,FA,8A,88,EE,DD,11,FF,F5,11,11,77
+                     hex   BB,88,88,8A,88,88,EE,DD,11,FF,15,11,11,77
+                     hex   BB,88,88,88,88,88,EE,DD,11,5F,11,11,11,77
+                     hex   BB,88,88,F8,F8,88,EE,DD,11,F1,F1,11,11,77
+                     hex   BB,88,88,FA,8A,88,EE,DD,11,FF,F5,11,11,77
+                     hex   BB,88,88,8A,88,88,EE,DD,11,FF,15,11,11,77
+                     hex   BB,88,88,AF,AF,88,EE,DD,11,5F,5F,11,11,77
+                     hex   BB,88,88,F8,88,88,EE,DD,11,11,F1,11,11,77
+                     hex   BB,88,88,FA,AF,88,EE,DD,11,5F,15,11,11,77
+                     hex   BB,88,88,8A,F8,88,EE,DD,11,F1,5F,11,11,77
+                     hex   BB,88,88,F8,AF,88,EE,DD,11,5F,F1,11,11,77
+                     hex   BB,88,88,8A,88,88,EE,DD,11,11,15,11,11,77
+                     hex   BB,88,88,AF,AF,88,EE,DD,11,5F,FF,5F,11,77
+                     hex   BB,88,88,88,88,88,EE,DD,11,11,FF,11,11,77
+                     hex   BB,88,88,88,88,88,EE,DD,11,11,FF,11,11,77
+                     hex   BB,E8,88,88,88,88,BE,7D,11,11,15,11,D1,77
+                     hex   BB,BB,BE,BE,BE,BE,BB,77,7D,7D,7D,7D,77,77
+
+
 
 NumMaskColor         equ   #$11
 NumHeight            equ   #$03
@@ -965,4 +1031,99 @@ QRCodeData
                      hex   00,0F,00,FF
                      hex   FF,FF,FF,FF,FF,FF,FF,FF,FF,FF,FF,FF,FF,FF,FF,FF,FF,FF,FF,FF,FF,FF,FF,FF
                      hex   FF,FF,FF,FF
+
+*** DK! DLR Kit *********
+* DKUnpackRLEToLoRes
+* Word ($2) = Address of pack data
+* Expects you to have already set main or aux 
+DKUnpackRLEToLoRes
+                     lda   #0
+                     sta   _line
+                     tay
+
+                     lda   LoLineTable,y
+                     sta   $0
+                     lda   LoLineTable+1,y
+                     sta   $1
+
+_getUnpackCommand    ldx   #$0
+                     lda   ($2,x)
+                     bmi   :uncoded
+:repeat              sta   _repeat
+                     inc   $2                   ;\
+                     bne   :noroll              ; >-- increment pack data ptr
+                     inc   $3                   ;/
+:noroll              lda   ($2,x)               ; get color value
+
+                     ldx   _repeat              ; x=repeat count
+
+:repeatLoop          sta   ($0),y               ; write to screen
+                     iny
+                     cpy   #40
+                     bne   :notEOL
+                     pha
+                     inc   _line
+                     lda   _line
+                     cmp   #24
+                     bne   :notDoneLines
+                     pla
+                     rts                        ; DONE?  this might be impossible
+:notDoneLines        asl
+                     tay
+                     lda   LoLineTable,y
+                     sta   $0
+                     lda   LoLineTable+1,y
+                     sta   $1
+                     ldy   #0
+                     pla                        ;restore a
+:notEOL              dex
+                     bne   :repeatLoop
+                     inc   $2
+                     beq   :roll
+                     jmp   _getUnpackCommand
+:roll                inc   $3
+                     jmp   _getUnpackCommand
+
+
+:uncoded             and   #$7f                 ;strip high bit
+                     sta   _repeat              ; re-use repeat for uncoded count
+:repeatLoop2
+                     inc   $2
+                     bne   :noroll2
+                     inc   $3
+:noroll2             lda   ($2,x)               ; get color value
+                     sta   ($0),y               ; write to screen
+                     iny
+                     cpy   #40
+                     bne   :notEOL2
+                     pha
+                     inc   _line
+                     lda   _line
+                     cmp   #24
+                     bne   :notDoneLines2
+                     pla
+                     rts                        ; DONE?  this might be impossible
+:notDoneLines2       asl
+                     tay
+                     lda   LoLineTable,y
+                     sta   $0
+                     lda   LoLineTable+1,y
+                     sta   $1
+                     ldy   #0
+                     pla                        ;restore a
+:notEOL2             dec   _repeat
+                     bne   :repeatLoop2
+                     inc   $2
+                     beq   :roll2
+                     jmp   _getUnpackCommand
+:roll2               inc   $3
+                     jmp   _getUnpackCommand
+
+
+
+
+_repeat              db    0
+_line                db    0
+
+
 
