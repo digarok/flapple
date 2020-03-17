@@ -9,21 +9,15 @@
                     typ   $ff                ; set P8 type ($ff = "SYS") for output file
                     xc    off                ; @todo force 6502?
                     xc    off
-MLI                 equ   $bf00
 
-; Sorry, I gotta have some macros.. this is merlin format after all
-; You might as well take advantage of your tools :P
-CopyPtr             MAC
-                    lda   #<]1               ; load low byte
-                    sta   ]2                 ; store low byte
-                    lda   #>]1               ; load high byte
-                    sta   ]2+1               ; store high byte
-                    <<<
 
-; HANDLE GREENSCREEN DOODS... MONO flag set 0 = color mode,  1 = mono mode
+* Change this flag to build either color/mono version
+* 0 = color mode,  1 = mono mode
+* The main difference is that it uses a black background so playfield is more visible on B/W screens
 MONO                equ  0
 
                     DO    MONO
+* MONO VERSION BUILD
                     dsk   fmono.system       ; tell compiler output filename
 BGCOLOR             equ   #$00
 BGCOLORAUX          equ   #$00
@@ -32,8 +26,8 @@ BGCOLOR_0HI         equ   #$00
 BGCOLORAUX_0LO      equ   #$00
 BGCOLORAUX_0HI      equ   #$00
 
-; HANDLE COLOR DOODS
                     ELSE
+* COLOR VERSION BUILD
                     dsk   flap.system        ; tell compiler output filename
 BGCOLOR             equ   #$77
 BGCOLORAUX          equ   #$BB
@@ -41,20 +35,31 @@ BGCOLOR_0LO         equ   #$70
 BGCOLOR_0HI         equ   #$07
 BGCOLORAUX_0LO      equ   #$B0
 BGCOLORAUX_0HI      equ   #$0B
-
                     FIN
+
+
+* Usage: CopyPtr sourceAddress;destinationZPPtrLoc
+*        macro used to set up ZeroPage pointers
+*        Example setting up sprite data pointer to the location of a bird sprite
+*        CopyPtr  BIRD_WUP_E_PIXEL;SPRITE_DATA_P
+CopyPtr             MAC
+                    lda   #<]1               ; load low byte
+                    sta   ]2                 ; store low byte
+                    lda   #>]1               ; load high byte
+                    sta   ]2+1               ; store high byte
+                    <<<
 
 
 
 Main
-                    jsr   DetectMachine      ; also inits vbl
+                    jsr   SetupVBL
                     jsr   LoadHiScore
                     jsr   IntroWipe
-
                     jsr   DL_SetDLRMode
 
-Title
-                    jsr   VBlank
+
+AttractLoop
+                    jsr   WaitVBL
                     DO    MONO
                     lda   #$FF
                     ELSE
@@ -68,97 +73,87 @@ Title
                     ldy   #BGCOLOR
                     jsr   DL_WipeIn
                     jsr   DrawFlogo
-                    lda   FlogoCount
+                    lda   SongSkipCounter
                     and   #%00000011         ; every 4 times?
                     bne   :noSongForYou
                     jsr   PlayFlappySong     ;@todo throttle
 :noSongForYou
-                    inc   FlogoCount
+                    inc   SongSkipCounter
                     ldx   #60
                     ldy   #2
                     jsr   WaitKeyXY
 
-PreGameLoop
-** INIT ALL GAME STATE ITEMS
+PlayfieldAttract
+* INITIALIZE ALL GAME STATE VALUES
+                    lda   #BIRD_X
+                    sta   SPRITE_X
                     lda   #BIRD_Y_INIT
                     sta   BIRD_Y
                     sta   BIRD_Y_OLD
+                    lda   #BIRD_WIDTH
+                    sta   SPRITE_W
+
                     lda   #0
                     sta   SPRITE_COLLISION
-                    sta   PreGameTick
-                    sta   PreGameTick+1
-                    sta   PreGameText
+                    sta   AttractTick
+                    sta   AttractTick+1
+                    sta   AttractText
                     sta   ScoreLo
                     sta   ScoreHi
-
-
-                    lda   #0
                     ldx   #3
-:clearPipes         sta   TopPipes,x
-                    sta   BotPipes
+:zeroPipes          sta   TopPipes,x
+                    sta   BotPipes,x
                     dex
-                    bpl   :clearPipes
+                    bpl   :zeroPipes
 
-** CLEAR SCREEN - SETUP BIRD
-                    jsr   VBlank
+* CLEAR SCREEN TO PLAYFIELD COLOR
+                    jsr   WaitVBL
                     lda   #BGCOLOR
                     jsr   DL_Clear
 
-                    lda   #BIRD_X
-                    sta   SPRITE_X
-                    lda   #5
-                    sta   SPRITE_W           ; all birds are same width
 
-** WAIT FOR PLAYER TO HIT SOMETHING
-:noKey              jsr   VBlank
+* ANIMATE PLAYFIELD/BIRD WHILE WAITING FOR A KEYPRESS
+:attractAnimLoop    jsr   WaitVBL
                     jsr   UndrawBird
                     jsr   DrawBird
                     jsr   UpdateGrass
                     jsr   FlapBird
 
-                    inc   PreGameTick
+                    inc   AttractTick
                     bne   :noOverflow
-                    inc   PreGameTick+1
-:noOverflow         lda   PreGameTick
-                    cmp   #60
-                    bcc   :skipText
-                    lda   PreGameText
+                    inc   AttractTick+1
+:noOverflow         lda   AttractTick
+                    cmp   #60                ; on the 60th tick (aka after 1 second)
                     bne   :skipText
-                    inc   PreGameText
-                    jsr   DrawTap
+                    jsr   DrawTap            ; draw the "tap to flap" message
 :skipText
-                    lda   PreGameTick+1
-                    cmp   #2
+                    lda   AttractTick+1
+                    cmp   #2                 ; on the 0x200 aka 512th tick, switch to hiscore screen
                     bne   :checkKey
-
                     jmp   HiScreen
 
 :checkKey           jsr   ButtonsCheck
-                    bcs   :key
+                    bcs   :keyPressed
                     lda   KEY
-                    bpl   :noKey
-:key                sta   STROBE
+                    bpl   :attractAnimLoop
+:keyPressed         sta   STROBE
                     lda   #BGCOLOR
                     jsr   DL_Clear
                     jmp   GameLoop
 
-PreGameTick         dw    0
-
-PreGameText         db    0
-GSBORDER            da    _GSBORDER
-_GSBORDER           db    0
+AttractTick         dw    0
+AttractText         db    0
 
 
+* MAIN GAME LOOP
 GameLoop
-                    jsr   VBlank
-
-                    jsr   UndrawBird
-                    jsr   DrawPipes
-                    jsr   DrawScore
-                    jsr   DrawBird
-                    jmp   UpdatePipes
+                    jsr   WaitVBL             ; wait until we are in vertical blanking period
+                    jsr   UndrawBird         ; overwrite sprite area with background color
+                    jsr   DrawPipes          ; draw pipes in new position (this wipes with bgcolor as it draws)
+                    jsr   DrawScore          ; draw the score indicator at the top (overlapping any pipes)
+                    jsr   DrawBird           ; draw the bird
+                    jmp   UpdatePipes        ; update the
 UpdatePipesDone
-DONTUPDATEPIPES
                     jsr   FlapBird
                     jsr   UpdateGrass
 
@@ -205,13 +200,13 @@ GAME_OVER
                     lda   QuitFlag
                     beq   :noQuit
                     jmp   Quit
-:noQuit             jmp   PreGameLoop
+:noQuit             jmp   PlayfieldAttract
 :noKey
                     lda   #$FA
                     ldx   #$50
                     ldy   #$00
                     jsr   DL_WipeIn
-                    jmp   Title
+                    jmp   AttractLoop
 HiScreen
                     jsr   GetRand
                     jsr   DL_Clear
@@ -230,34 +225,17 @@ HiScreen
                     lda   QuitFlag
                     beq   :noQuit
                     jmp   Quit
-:noQuit             jmp   PreGameLoop
-:noKey              jmp   Title
+:noQuit             jmp   PlayfieldAttract
+:noKey              jmp   AttractLoop
 
-FlogoCount          db    0                  ; used to throttle how often song is played
+SongSkipCounter     db    0                  ; used to throttle how often song is played
 
-SND_Flap            jmp   SND_Flap2
-SND_Flap1
-                    ldx   #$1c               ;LENGTH OF NOISE BURST
-:spkLoop            lda   SPEAKER            ;TOGGLE SPEAKER
-                    txa
-                    asl
-                    asl
-                    tay
-
-:waitLoop           dey                      ;DELAY LOOP FOR PULSE WIDTH
-                    bne   :waitLoop
-                    dex                      ;GET NEXT PULSE OF THIS NOISE BURST
-                    bne   :spkLoop
-                    rts
-
-SND_Flap2
-                    ldx   #$16               ;LENGTH OF NOISE BURST
+SND_Flap            ldx   #$16               ;LENGTH OF NOISE BURST
 :spkLoop            sta   SPEAKER            ;TOGGLE SPEAKER
                     txa
                     clc
                     adc   #$30
                     tay
-
 :waitLoop           dey                      ;DELAY LOOP FOR PULSE WIDTH
                     bne   :waitLoop
                     dex                      ;GET NEXT PULSE OF THIS NOISE BURST
@@ -270,7 +248,6 @@ SND_Static
 :spkLoop            lda   SPEAKER            ;TOGGLE SPEAKER
                     jsr   GetRand
                     tay
-*	ldy $BA00,X	;GET PULSE WIDTH PSEUDO-RANDOMLY
 :waitLoop           dey                      ;DELAY LOOP FOR PULSE WIDTH
                     bne   :waitLoop
                     dex                      ;GET NEXT PULSE OF THIS NOISE BURST
@@ -281,7 +258,7 @@ SND_Static
                     jsr   GetRand
                     and   #%1000000
                     tay
-*	ldy $BA00,X	;GET PULSE WIDTH PSEUDO-RANDOMLY
+
 :waitLoop2          dey                      ;DELAY LOOP FOR PULSE WIDTH
                     bne   :waitLoop2
                     dex                      ;GET NEXT PULSE OF THIS NOISE BURST
@@ -400,9 +377,6 @@ PauseKeyCheck       cmp   #"p"
                     lda   #0
                     rts
 
-BIRD_VELOCITY       db    0                  ; in two's compliment {-3,3} 
-BIRD_VELOCITY_MAX   equ   #20
-BIRD_VELOCITY_MIN   equ   #%111111111        ; -1
 LoadHiScore         jsr   CreateHiScoreFile
                     bcs   :error
                     jsr   OpenHiScoreFile
@@ -428,7 +402,7 @@ CreateHiScoreFile
 :error              cmp   #$47               ; dup filename - already created?
                     bne   :bail
                     clc                      ; this is ok, clear error state
-:bail               rts                      ; oh well... just carry on in session 
+:bail               rts                      ; oh well... just carry on in session
 
 OpenHiScoreFile
                     jsr   MLI
@@ -445,7 +419,7 @@ OpenHiScoreFile
 ReadHiScoreFile
                     lda   #0
                     sta   IOBuffer
-                    sta   IOBuffer+1         ;zero load area, just in case
+                    sta   IOBuffer+1         ; zero load area, just in case
                     lda   OpenRefNum
                     sta   ReadRefNum
                     jsr   MLI
@@ -493,7 +467,7 @@ WriteHiScoreFile
 
 
 OpenHiScoreParam
-                    dfb   #$03               ; number of parameters 
+                    dfb   #$03               ; number of parameters
                     dw    HiScoreFile
                     dw    $900
 OpenRefNum          db    0                  ; assigned by open call
@@ -501,7 +475,7 @@ HiScoreFile         str   'flaphi'
 
 
 CloseHiScoreParam
-                    dfb   #$01               ; number of parameters 
+                    dfb   #$01               ; number of parameters
 CloseRefNum         db    0
 
 
@@ -532,7 +506,8 @@ WriteRefNum         db    0                  ; set by open subroutine above
 WriteResult         dw    0                  ; result count (amount transferred)
 
 
-Quit                jsr   QRPause
+Quit                jsr   ShutDownVBL        ; disable IIc VBL polling if needed
+                    jsr   QRPause
                     sta   TXTPAGE1           ; Don't forget to give them back the right page!
                     jsr   MLI                ; first actual command, call ProDOS vector
                     dfb   $65                ; QUIT P8 request ($65)
@@ -584,15 +559,16 @@ QRPause             jsr   DL_SetDLRMixMode
                     ldy   #60
                     jsr   WaitKeyXY
                     rts
-QuitStr             str   "http://dagenbrock.com/flappy"
+QuitStr             str   "https://github.com/digarok/flapple"
 
-******************************
+**************************************************
 * Score Routines
-*********************
+**************************************************
 ScoreLo             db    0                  ; 0-99
-ScoreHi             db    0                  ; hundreds, not shown on screen
+ScoreHi             db    0                  ; hundreds, not shown during gameplay but in highscore it is shown
 HiScoreLo           db    0
 HiScoreHi           db    0
+
 ** Draw the Score - @todo - handle > 99
 DrawScore           lda   ScoreLo
                     and   #$0F
@@ -612,7 +588,7 @@ DrawScore           lda   ScoreLo
                     sta   Lo02+18
                     rts
 
-** HANDLE HIGH SCORE	
+** HANDLE HIGH SCORE
 UpdateHiScore
                     lda   HiScoreHi
                     cmp   ScoreHi
@@ -622,7 +598,6 @@ UpdateHiScore
                     cmp   ScoreLo
                     bcc   :newHighScore
                     bcs   :noHighScore
-
 
 :newHighScore       lda   ScoreHi
                     sta   HiScoreHi
@@ -635,7 +610,7 @@ UpdateHiScore
 
 
 **************************************************
-* Grass 
+* Grass
 **************************************************
 UpdateGrass         inc   GrassState
                     lda   GrassState
@@ -842,7 +817,7 @@ WaitKey
 
 WaitKeyXY
                     stx   _waitX
-:kloop              jsr   VBlank
+:kloop              jsr   WaitVBL
                     lda   KEY
                     bmi   :kpress
                     dex
@@ -859,27 +834,8 @@ WaitKeyXY
                     rts
 _waitX              db    0
 
-**************************************************
-* See if we're running on a IIgs
-* From Apple II Technote: 
-*   Miscellaneous #7
-*   Apple II Family Identification
-**************************************************
-DetectMachine
-                    sec                      ;Set carry bit (flag)
-                    jsr   $FE1F              ;Call to the monitor
-                    bcs   :oldmachine        ;If carry is still set, then old machine
-*	bcc :newmachine    ;If carry is clear, then new machine
-:newmachine         asl   _compType          ;multiply vblank detection val $7E * 2
-                    lda   #1
-                    bne   :setmachine
-:oldmachine         lda   #0
-:setmachine         sta   GMachineIIgs
 
-                    jsr   InitVBlank
-                    rts
 
-GMachineIIgs        db    0
 
 IntroWipe
                     sta   C80STOREON
@@ -905,12 +861,12 @@ IntroText           str   "Dagen Brock presents..."
 
 
 **************************************************
-* Wait for vertical blanking interval - IIe/IIgs
+* Wait for multiple VBLs
 **************************************************
 VBlankX
 :xloop              txa
                     pha
-                    jsr   VBlank
+                    jsr   WaitVBL
                     pla
                     tax
                     dex
@@ -918,94 +874,14 @@ VBlankX
                     rts
 
 
-InitVBlank
-                    lda   $FBC0              ; check for IIc
-                    bne   :rts               ; not a IIc--use VBlankIIeIIgs
-
-                    jsr   MLI                ; instantiate our interrupt
-                    dfb   $40
-                    da    VBLIntParm
-
-                    lda   #%00001000         ; enable vblint only
-                    ldx   #SETMOUSE
-                    jsr   mouse
-
-                    lda   #VBlankIIc         ; override vblank
-                    sta   VBlankRoutine
-                    lda   #>VBlankIIc
-                    sta   VBlankRoutine+1
-
-                    cli
-
-:rts                rts
-
-
-VBLIntParm          dfb   2
-                    brk                      ;?
-                    da    VBLIntHandler
-
-VBLIntHandler       cld                      ; Expected by ProDOS
-                    ldx   #SERVEMOUSE
-                    jsr   mouse
-                    bcs   :notOurs           ; pass if not
-                    sec
-                    ror   _vblflag           ;set hibit
-
-                    clc
-:notOurs            rts
-
-mouse               ldy   $C400,x
-                    sty   :jump+1
-
-                    ldx   #$C4
-                    ldy   #$40
-
-                    sei
-:jump               jmp   $C400
 
 
 
-
-MOUSE               =     $c400              ; mouse = slot 4
-*SETMOUSE	=   $c412	; Apple IIc Ref p.168
-*SERVEMOUSE	=   $c413	; Apple IIc Ref p.168
-
-SETMOUSE            =     $12
-SERVEMOUSE          =     $13
-READMOUSE           =     $14
-INITMOUSE           =     $19
-
-VBlank              jmp   VBlankIIeIIgs
-VBlankRoutine       equ   *-2
-VBlankIIc
-                    cli                      ;enable interrupts
-
-:loop1              bit   _vblflag
-                    bpl   :loop1             ;wait for vblflag = 1
-                    lsr   _vblflag           ;...& set vblflag = 0
-
-*:loop2	bit _vblflag
-*	bpl :loop2
-*	lsr _vblflag
-
-                    sei
-                    rts
-_vblflag            db    0
-
-VBlankIIeIIgs
-                    lda   _compType
-:vblActive          cmp   RDVBLBAR           ; make sure we wait for the current one to stop
-                    bpl   :vblActive         ; in case it got launched in rapid succession
-:screenActive       cmp   RDVBLBAR
-                    bmi   :screenActive
-                    rts
-
-_compType           db    #$7e               ; $7e - IIe ; $FE - IIgs 
+MLI                 equ   $bf00              ; ProDOS entry point
 
 
 
-
-
+                    put   vbl
                     put   util
                     put   applerom
                     put   dlrlib

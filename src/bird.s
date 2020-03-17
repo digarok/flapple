@@ -25,6 +25,10 @@ SPRITE_IMASK_P         equ     $FC
 SPRITE_SCREEN_IDX      db       #$0
 
 
+BIRD_VELOCITY       db    0                  ; in two's compliment {-3,3}
+BIRD_VELOCITY_MAX   equ   #20
+BIRD_VELOCITY_MIN   equ   #%111111111        ; -1
+BIRD_WIDTH             equ      #5
 BIRD_X                 equ      #17
 BIRD_Y_INIT            equ      #17
 BIRD_Y                 db       #BIRD_Y_INIT                     ; (0-47)
@@ -233,7 +237,6 @@ UndrawBird             lda      BIRD_Y_OLD
 
 
 
-
 :undraw4               lda      LoLineTableL,y
                        sta      SPRITE_SCREEN_P
                        lda      LoLineTableH,y
@@ -345,24 +348,6 @@ DrawBird
                        CopyPtr  BIRD_WDN_O_IMASK;SPRITE_IMASK_P
                        jmp      :drawSprite
 :drawSprite
-                       jsr      DrawSpriteBetter
-                       rts
-
-*** MAKE IT WORK
-
-BirdTest
-                       lda      BIRD_X                           ;#30 (0-79)
-                       sta      SPRITE_X
-                       lda      BIRD_Y                           ;#10 (0-23)
-                       sta      SPRITE_Y
-                       lda      #5                               ;/2 value (we do two passes of 1/2... Aux/Main)
-                       sta      SPRITE_W
-                       lda      #3                               ;/2 value (must be byte aligned vertically
-                       sta      SPRITE_H
-;	CopyPtr BIRD_WDN_MAIN;SPRITE_MAIN_P
-;	CopyPtr BIRD_WDN_AUX;SPRITE_AUX_P
-;	CopyPtr BIRD_WDN_MASK;SPRITE_MASK_P
-;	CopyPtr BIRD_WDN_IMASK;SPRITE_IMASK_P
                        jsr      DrawSpriteBetter
                        rts
 
@@ -482,7 +467,4 @@ DD_ODD
                        cpy      SPRITE_W
                        bcc      :lineLoop
 
-
                        jmp      ]DSLCD_done
-
-
