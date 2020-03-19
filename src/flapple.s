@@ -14,7 +14,7 @@
 * Change this flag to build either color/mono version
 * 0 = color mode,  1 = mono mode
 * The main difference is that it uses a black background so playfield is more visible on B/W screens
-MONO                equ  0
+MONO                equ   0
 
                     DO    MONO
 * MONO VERSION BUILD
@@ -74,9 +74,9 @@ AttractLoop
                     jsr   DL_WipeIn
                     jsr   DrawFlogo
                     lda   SongSkipCounter
-                    and   #%00000011         ; every 4 times?
+                    and   #%00000011         ; throttle to play song every 4 times?
                     bne   :noSongForYou
-                    jsr   PlayFlappySong     ;@todo throttle
+                    jsr   SND_PlayFlappySong
 :noSongForYou
                     inc   SongSkipCounter
                     ldx   #60
@@ -147,7 +147,7 @@ AttractText         db    0
 
 * MAIN GAME LOOP
 GameLoop
-                    jsr   WaitVBL             ; wait until we are in vertical blanking period
+                    jsr   WaitVBL            ; wait until we are in vertical blanking period
                     jsr   UndrawBird         ; overwrite sprite area with background color
                     jsr   DrawPipes          ; draw pipes in new position (this wipes with bgcolor as it draws)
                     jsr   DrawScore          ; draw the score indicator at the top (overlapping any pipes)
@@ -170,7 +170,7 @@ GAME_OVER
                     jsr   DrawPipes
                     jsr   DrawScore
                     jsr   DrawSplosion
-                    jsr   SND_Static
+                    jsr   SND_Crash
                     jsr   UpdateHiScore
                     lda   #3
                     sta   SPR_Y
@@ -230,51 +230,6 @@ HiScreen
 
 SongSkipCounter     db    0                  ; used to throttle how often song is played
 
-SND_Flap            ldx   #$16               ;LENGTH OF NOISE BURST
-:spkLoop            sta   SPEAKER            ;TOGGLE SPEAKER
-                    txa
-                    clc
-                    adc   #$30
-                    tay
-:waitLoop           dey                      ;DELAY LOOP FOR PULSE WIDTH
-                    bne   :waitLoop
-                    dex                      ;GET NEXT PULSE OF THIS NOISE BURST
-                    bne   :spkLoop
-                    rts
-
-
-SND_Static
-                    ldx   #$80               ;LENGTH OF NOISE BURST
-:spkLoop            lda   SPEAKER            ;TOGGLE SPEAKER
-                    jsr   GetRand
-                    tay
-:waitLoop           dey                      ;DELAY LOOP FOR PULSE WIDTH
-                    bne   :waitLoop
-                    dex                      ;GET NEXT PULSE OF THIS NOISE BURST
-                    bne   :spkLoop
-
-                    ldx   #$60               ;LENGTH OF NOISE BURST
-:spkLoop2           lda   SPEAKER            ;TOGGLE SPEAKER
-                    jsr   GetRand
-                    and   #%1000000
-                    tay
-
-:waitLoop2          dey                      ;DELAY LOOP FOR PULSE WIDTH
-                    bne   :waitLoop2
-                    dex                      ;GET NEXT PULSE OF THIS NOISE BURST
-                    bne   :spkLoop2
-
-                    ldx   #$80               ;LENGTH OF NOISE BURST
-:spkLoop3           lda   SPEAKER            ;TOGGLE SPEAKER
-                    jsr   GetRand
-                    lsr
-                    tay
-:waitLoop3          dey                      ;DELAY LOOP FOR PULSE WIDTH
-                    bne   :waitLoop3
-                    dex                      ;GET NEXT PULSE OF THIS NOISE BURST
-                    bne   :spkLoop3
-
-                    rts
 
 HandleInput
                     lda   BIRD_Y
@@ -506,8 +461,8 @@ WriteRefNum         db    0                  ; set by open subroutine above
 WriteResult         dw    0                  ; result count (amount transferred)
 
 
-Quit                jsr   ShutDownVBL        ; disable IIc VBL polling if needed
-                    jsr   QRPause
+Quit                jsr   QRPause
+                    jsr   ShutDownVBL        ; disable IIc VBL polling if needed
                     sta   TXTPAGE1           ; Don't forget to give them back the right page!
                     jsr   MLI                ; first actual command, call ProDOS vector
                     dfb   $65                ; QUIT P8 request ($65)
