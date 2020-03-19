@@ -14,6 +14,8 @@ fi
 
 #revert file to original state (MONO=0)
 sed -i.bak "s/^MONO\(.*\)equ.*/MONO\1equ  0/g" src/flapple.s
+rm src/flapple.s.bak
+
 
 ./make_po.sh
 gsplus
